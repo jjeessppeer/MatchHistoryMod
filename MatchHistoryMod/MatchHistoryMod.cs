@@ -148,16 +148,15 @@ namespace MatchHistoryMod
         private static void MatchComplteStateEnter()
         {
             FileLog.Log("UIMatchCompleteState Enter");
-            // TODO: is this safe? Should always be one crew but idk.
-            MatchEntity matchEntity = MatchLobbyView.Instance.FlatCrews[0].Match;
-            MatchHistoryRecord record = new MatchHistoryRecord(matchEntity);
+            MatchLobbyView matchLobbyView = MatchLobbyView.Instance;
+            MatchData record = new MatchData(matchLobbyView);
             FileLog.Log(JsonConvert.SerializeObject(record));
         }
     }
 
 
 
-    public class MatchHistoryRecord
+    public class MatchData
     {
         public string MatchId;
         public int GameMode;
@@ -168,27 +167,25 @@ namespace MatchHistoryMod
 
         public int[] Scores;
         public int MissionTime;
-        public long TimeEnded;
+        public DateTime TimeStarted;
 
         public List<ShipData> Ships;
 
-        public MatchHistoryRecord(MatchEntity matchEntity)
+        public MatchHistoryRecord(MatchLobbyView matchLobbyView)
         {
             Mission mission = Mission.Instance;
 
-
-            MatchId = matchEntity.MatchId;
-            GameMode = (int)matchEntity.Map.GameMode;
-            MapId = matchEntity.MapId;
+            MatchId = matchLobbyView.MatchId;
+            GameMode = (int)matchLobbyView.Map.GameMode;
+            MapId = matchLobbyView.MapId;
             TeamSize = mission.shipsPerTeam;
             TeamCount = mission.numberOfTeams;
-            MissionTime = matchEntity.ElapsedSeconds;
-            TimeEnded = DateTime.UtcNow.Ticks;
+            MissionTime = matchLobbyView.ElapsedTime.Seconds;
+            TimeStarted = DateTime.UtcNow.Subtract(TimeSpan.FromSeconds(MissionTime));
 
             // Load scores from currently active mission.
             int[] Scores = new int[mission.numberOfTeams];
             for (int i = 0; i < mission.numberOfTeams; ++i) Scores[i] = mission.TeamScore(i);
-            matchLobbyView.FlatCrews[0].Match.
 
             // Load all the ships.
             Ships = new List<ShipData>();
@@ -196,6 +193,7 @@ namespace MatchHistoryMod
             {
                 Muse.Goi2.Entity.Vo.CrewShipVO crewShip = matchLobbyView.CrewShips[i];
                 Muse.Goi2.Entity.CrewEntity crewEntity = matchLobbyView.FlatCrews[i];
+                //matchLobbyView.CrewShips
 
                 ShipData shipData = new ShipData(crewShip, crewEntity);
                 Ships.Add(shipData);
@@ -208,11 +206,13 @@ namespace MatchHistoryMod
     {
         public int ShipId;
         public string ShipName;
+
         public int ShipModel;
+        public List<int> Guns;
         //public List<int> Guns;
 
         public int TeamIdx;
-        //public int ShipIdx;
+        public int ShipIdx;
     
         public List<PlayerData> Players;
 
@@ -222,14 +222,29 @@ namespace MatchHistoryMod
             ShipName = ship.Name;
             ShipModel = ship.Model.Id;
             TeamIdx = ship.Side;
+            ShipIdx = crew.SequenceInMatch;
 
             Players = new List<PlayerData>();
-            foreach (Muse.Goi2.Entity.UserAvatarEntity player in crew.CrewMembers)
+            foreach (UserAvatarEntity player in crew.CrewMembers)
             {
                 PlayerData playerData = new PlayerData(player);
                 Players.Add(playerData);
             }
+           
 
+            // Load the guns from the ship.
+            // Use the guns slot names to make sure guns are added in the correct order.
+            string[] gunSlotNames = new string[8]
+            {
+                "gun-slot-1", "gun-slot-2", "gun-slot-3", "gun-slot-4",
+                "gun-slot-5", "gun-slot-6", "gun-slot-7", "gun-slot-8"
+            };
+            Guns = new List<int>();
+            for (int i=0; i<ship.GetGuns().Count; ++i)
+            {
+                Guns.Add(ship.GetGuns()[gunSlotNames[i]].Id);
+                //Loadout.Add($"{ship.GetGuns()[gunSlotNames[i]].Id} {ship.GetGuns()[gunSlotNames[i]].NameText}");
+            }
 
             foreach (var item in crew.MatchStats)
             {
@@ -244,46 +259,63 @@ namespace MatchHistoryMod
     {
         public int PlayerId;
         public string PlayerName;
-        public int? ClanId;
-        public string ClanName;
+        public string PlayerNameRaw;
+        //public int? ClanId;
+        public string ClanTag;
 
         public int CrewClass;
         public int[] Levels;
-        public int AvgLevel;
-        public int MatchesPlayed;
+        //public int AvgLevel;
+        //public int MatchesPlayed;
 
         //public List<int> PilotTools;
         //public List<int> GunnerTools;
         //public List<int> EngineerTools;
 
-        public PlayerData(Muse.Goi2.Entity.UserAvatarEntity user)
+        public Dictionary<string, List<string>> Loadout;
+
+        public PlayerData(UserAvatarEntity user)
         {
 
-            FileLog.Log(
-                $"{(int)user.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot)}, " +
-                $"{(int)user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot)}, " +
-                $"{(int)user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot) * 45}," +
-                $"{(int)user.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot) + (int)user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot) * 45}");
-
-
+            
             PlayerId = user.UserId;
-            PlayerName = user.RawName;
-            ClanId = user.ClanId;
-            ClanName = user.ClassName;
-
+            PlayerName = user.Name;
+            PlayerNameRaw = user.RawName;
+            //ClanId = user.ClanId; // Null in this state idk why.
+            ClanTag = user.ClanTag;
 
             Levels = new int[3] {
-                user.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot) + user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot) * 45,
-                user.GetLevel(Muse.Goi2.Entity.AvatarClass.Gunner) + user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Gunner) * 45,
-                user.GetLevel(Muse.Goi2.Entity.AvatarClass.Engineer) + user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Engineer) * 45 };
-            AvgLevel = user.AverageLevel;
-            MatchesPlayed = NetworkedPlayer.ByUserId[user.UserId].MatchesPlayed; // TODO: not sure if all players in the match are always loaded.
+                user.GetLevel(AvatarClass.Pilot) + user.GetPrestigeLevel(AvatarClass.Pilot) * 45,
+                user.GetLevel(AvatarClass.Gunner) + user.GetPrestigeLevel(AvatarClass.Gunner) * 45,
+                user.GetLevel(AvatarClass.Engineer) + user.GetPrestigeLevel(AvatarClass.Engineer) * 45 };
+
+            //AvgLevel = user.AverageLevel; // Always 0 in this state
+            //MatchesPlayed = NetworkedPlayer.ByUserId[user.UserId].MatchesPlayed; // Always 0 in this state
 
             CrewClass = (int)user.CurrentClass;
-            foreach (var loadout in user.Loadouts[user.CurrentClass].GetCurrentSkillList(user.CurrentCrew.Match.CreatedGameType).GetSkills(user.CurrentCrew.Match.CreatedGameType))
+            Loadout = new Dictionary<string, List<string>>();
+            Loadout.Add("Pilot", new List<string>());
+            Loadout.Add("Gunner", new List<string>());
+            Loadout.Add("Engineer", new List<string>());
+            foreach (var skill in user.CurrentSkills)
             {
-
+                var sc = CachedRepository.Instance.Get<SkillConfig>(skill);
+                if (sc.Type == SkillType.Helm) Loadout["Pilot"].Add($"{sc.Name} {skill}");
+                if (sc.Type == SkillType.Gun) Loadout["Gunner"].Add($"{sc.Name} {skill}");
+                if (sc.Type == SkillType.Repair) Loadout["Engineer"].Add($"{sc.Name} {skill}");
             }
+
+            //var loadout = user.Loadouts[user.CurrentClass];
+            //Console.WriteLine("Loadouts gotten");
+            //var skillList = loadout.GetCurrentSkillList(GameType.Skirmish);
+            //Console.WriteLine("Skill list gotten");
+            //var skills = skillList.GetSkills(GameType.Skirmish);
+            //Console.WriteLine("Skills gotten");
+            //foreach (var playerSkill in skills)
+            //{
+            //    Console.WriteLine("Adding skill");
+            //    if (playerSkill.Type == SkillType.Helm) { Loadout["Helm"].Add($"{playerSkill.Name} {playerSkill.AssetId} {playerSkill.ActivationId}"); }
+            //}
 
             //user.Loadouts[user.CurrentClass].GetCurrentSkillList(Muse.Goi2.Entity.GameType.Skirmish).GetSkills(Muse.Goi2.Entity.GameType.Skirmish)[0].Type;
             //ClanId = player.User.ClanId,
