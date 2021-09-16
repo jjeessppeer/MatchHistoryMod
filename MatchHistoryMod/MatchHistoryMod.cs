@@ -10,6 +10,8 @@ using UnityEngine;
 
 using Newtonsoft.Json;
 
+using Muse.Goi2.Entity;
+
 namespace MatchHistoryMod
 {
     [BepInPlugin(pluginGuid, pluginName, pluginVersion)]
@@ -33,8 +35,8 @@ namespace MatchHistoryMod
     {
         //private List<ShipData> 
 
-        private static bool _MissionActive = false;
-        private static List<ShipData> _ShipDatas = new List<ShipData>();
+        //private static bool _MissionActive = false;
+        //private static List<ShipData> _ShipDatas = new List<ShipData>();
 
         static MatchHistoryRecorder()
         {
@@ -90,55 +92,55 @@ namespace MatchHistoryMod
         //    FileLog.Log("UIManager CheckCurrentMatchStatus Ended");
         //}
 
-        // A new mission was initialized.
-        [HarmonyPrefix]
-        [HarmonyPatch(typeof(Mission), "Awake")]
-        private static void OnMatchStart()
-        {
-            FileLog.Log("Mission Awake");
-            _MissionActive = true;
-        }
+        //// A new mission was initialized.
+        //[HarmonyPrefix]
+        //[HarmonyPatch(typeof(Mission), "Awake")]
+        //private static void OnMatchStart()
+        //{
+        //    FileLog.Log("Mission Awake");
+        //    _MissionActive = true;
+        //}
         
-        // Mission ended.
-        [HarmonyPrefix]
-        [HarmonyPatch(typeof(Mission), "OnDisable")]
-        private static void OnMissionDisable()
-        {
-            FileLog.Log("Mission OnDisable");
-            // Reset state when mission is ended.
-            _MissionActive = false;
-            _ShipDatas.Clear();
-        }
+        //// Mission ended.
+        //[HarmonyPrefix]
+        //[HarmonyPatch(typeof(Mission), "OnDisable")]
+        //private static void OnMissionDisable()
+        //{
+        //    FileLog.Log("Mission OnDisable");
+        //    // Reset state when mission is ended.
+        //    _MissionActive = false;
+        //    _ShipDatas.Clear();
+        //}
 
-        [HarmonyPrefix]
-        [HarmonyPatch(typeof(ShipRegistry), "Register")]
-        private static void ShipRegisteredPrefix(Ship ship, out bool __state)
-        {
-            // All loaded ships are registered on every tick.
-            // Use state to check if a new ship is being registered.
-            __state = !ShipRegistry.All.Contains(ship);
-        }
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(ShipRegistry), "Register")]
-        private static void ShipRegisteredPostFix(Ship ship, bool __state)
-        {
-            // If __state is true ship had already been registered.
-            if (!__state) return;
+        //[HarmonyPrefix]
+        //[HarmonyPatch(typeof(ShipRegistry), "Register")]
+        //private static void ShipRegisteredPrefix(Ship ship, out bool __state)
+        //{
+        //    // All loaded ships are registered on every tick.
+        //    // Use state to check if a new ship is being registered.
+        //    __state = !ShipRegistry.All.Contains(ship);
+        //}
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(ShipRegistry), "Register")]
+        //private static void ShipRegisteredPostFix(Ship ship, bool __state)
+        //{
+        //    // If __state is true ship had already been registered.
+        //    if (!__state) return;
 
-            FileLog.Log("Ship registered");
+        //    FileLog.Log("Ship registered");
 
-            ShipData shipData = new ShipData(ship);
-            _ShipDatas.Add(shipData);
-        }
+        //    ShipData shipData = new ShipData(ship);
+        //    _ShipDatas.Add(shipData);
+        //}
 
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(Ship), "AddPlayer")]
-        private static void ShipPlayerAdded(Ship __instance, NetworkedPlayer player)
-        {
-            FileLog.Log($"Ship AddPlayer {player.UserId}");
-            // Reload the players of ship data object when player is added.
-            _ShipDatas.Find(shipData => shipData.ShipId == __instance.ShipId).ReloadPlayers(__instance);
-        }
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(Ship), "AddPlayer")]
+        //private static void ShipPlayerAdded(Ship __instance, NetworkedPlayer player)
+        //{
+        //    FileLog.Log($"Ship AddPlayer {player.UserId}");
+        //    // Reload the players of ship data object when player is added.
+        //    _ShipDatas.Find(shipData => shipData.ShipId == __instance.ShipId).ReloadPlayers(__instance);
+        //}
 
         // Called when match ends and post game screen is shown.
         [HarmonyPrefix]
@@ -146,23 +148,9 @@ namespace MatchHistoryMod
         private static void MatchComplteStateEnter()
         {
             FileLog.Log("UIMatchCompleteState Enter");
-            FileLog.Log("Crew from match lobby view");
-            foreach (Muse.Goi2.Entity.Vo.CrewShipVO crewShip in MatchLobbyView.Instance.CrewShips)
-            {   
-                FileLog.Log($"Ship: {crewShip.Name} {crewShip.Model.Name}");
-                
-            }
-            foreach (Muse.Goi2.Entity.CrewEntity crewEntity in MatchLobbyView.Instance.FlatCrews)
-            {
-                foreach (var crewMember in crewEntity.CrewMembers)
-                {
-                    FileLog.Log($"Player: {crewMember.Name} {crewMember.Id}");
-                }
-            }
-
-            Mission mission = Mission.Instance;
-
-            MatchHistoryRecord record = new MatchHistoryRecord(mission, _ShipDatas);
+            // TODO: is this safe? Should always be one crew but idk.
+            MatchEntity matchEntity = MatchLobbyView.Instance.FlatCrews[0].Match;
+            MatchHistoryRecord record = new MatchHistoryRecord(matchEntity);
             FileLog.Log(JsonConvert.SerializeObject(record));
         }
     }
@@ -171,47 +159,48 @@ namespace MatchHistoryMod
 
     public class MatchHistoryRecord
     {
-        public int GameMode;
-        public int TeamSize;
-        public int MapId;
-        public int[] Scores;
-
-        public int MissionTime;
-
         public string MatchId;
+        public int GameMode;
+        public int MapId;
+
+        public int TeamCount;
+        public int TeamSize;
+
+        public int[] Scores;
+        public int MissionTime;
+        public long TimeEnded;
 
         public List<ShipData> Ships;
 
-
-        //public int TimeStarted;
-        //public int TimeLength;
-        public long TimeEnded;
-
-        public MatchHistoryRecord(Mission mission, List<ShipData> ships)
+        public MatchHistoryRecord(MatchEntity matchEntity)
         {
-            //if (!__instance.IsSkirmish) throw new Exception("Not a PvP match. Match history not supported.");
-            int gameMode = -1;
-            if (mission is Deathmatch) gameMode = 0;
-            if (mission is CaptureTheFlag) gameMode = 1;
-            if (mission is CrazyKing) gameMode = 2;
+            Mission mission = Mission.Instance;
 
-            int[] scores = new int[mission.numberOfTeams];
-            for (int i = 0; i < mission.numberOfTeams; ++i) scores[i] = mission.TeamScore(i);
 
-            GameMode = gameMode;
+            MatchId = matchEntity.MatchId;
+            GameMode = (int)matchEntity.Map.GameMode;
+            MapId = matchEntity.MapId;
             TeamSize = mission.shipsPerTeam;
-            MapId = mission.mapId;
-            Scores = scores;
-            Ships = new List<ShipData>(ships);
+            TeamCount = mission.numberOfTeams;
+            MissionTime = matchEntity.ElapsedSeconds;
             TimeEnded = DateTime.UtcNow.Ticks;
 
-            MatchId = MatchLobbyView.Instance.MatchId;
-            MissionTime = MatchLobbyView.Instance.ElapsedTime.Seconds;
+            // Load scores from currently active mission.
+            int[] Scores = new int[mission.numberOfTeams];
+            for (int i = 0; i < mission.numberOfTeams; ++i) Scores[i] = mission.TeamScore(i);
+            matchLobbyView.FlatCrews[0].Match.
+
+            // Load all the ships.
+            Ships = new List<ShipData>();
+            for (int i = 0; i < matchLobbyView.CrewCount; ++i)
+            {
+                Muse.Goi2.Entity.Vo.CrewShipVO crewShip = matchLobbyView.CrewShips[i];
+                Muse.Goi2.Entity.CrewEntity crewEntity = matchLobbyView.FlatCrews[i];
+
+                ShipData shipData = new ShipData(crewShip, crewEntity);
+                Ships.Add(shipData);
+            }
         }
-        
-
-        //public int GameMode;
-
 
     }
 
@@ -227,30 +216,27 @@ namespace MatchHistoryMod
     
         public List<PlayerData> Players;
 
-        public ShipData(Ship ship)
+        public ShipData(Muse.Goi2.Entity.Vo.CrewShipVO ship, CrewEntity crew)
         {
-            ShipId = ship.ShipId;
-            ShipName = ship.name;
-            ShipModel = ship.ShipModelId;
-
+            ShipId = ship.Id;
+            ShipName = ship.Name;
+            ShipModel = ship.Model.Id;
             TeamIdx = ship.Side;
 
             Players = new List<PlayerData>();
-            ReloadPlayers(ship);
-        }
-
-        // Realoads the players from a provided ship
-        public void ReloadPlayers(Ship ship)
-        {
-            Players.Clear();
-            foreach (NetworkedPlayer player in ship.Players)
+            foreach (Muse.Goi2.Entity.UserAvatarEntity player in crew.CrewMembers)
             {
-                if (player.UserId == 0) continue; // Player is AI
-
                 PlayerData playerData = new PlayerData(player);
                 Players.Add(playerData);
             }
+
+
+            foreach (var item in crew.MatchStats)
+            {
+                FileLog.Log($"Crew stat: {item.Key} {item.Value}");
+            }
         }
+
 
     }
 
@@ -258,31 +244,50 @@ namespace MatchHistoryMod
     {
         public int PlayerId;
         public string PlayerName;
-
-        //public int? ClanId;
-        //public string? ClanName;
+        public int? ClanId;
+        public string ClanName;
 
         public int CrewClass;
         public int[] Levels;
-
-        public PlayerData(NetworkedPlayer player)
-        {
-            PlayerId = player.UserId;
-            PlayerName = player.name;
-            CrewClass = (int)player.PlayerType;
-            Levels = new int[3] {
-                player.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot),
-                player.GetLevel(Muse.Goi2.Entity.AvatarClass.Gunner),
-                player.GetLevel(Muse.Goi2.Entity.AvatarClass.Engineer) };
-            //ClanId = player.User.ClanId,
-            //ClanName = player.User.ClanTag
-        }
-        //public int Matches;
+        public int AvgLevel;
+        public int MatchesPlayed;
 
         //public List<int> PilotTools;
         //public List<int> GunnerTools;
         //public List<int> EngineerTools;
 
-        //int ClanId;
+        public PlayerData(Muse.Goi2.Entity.UserAvatarEntity user)
+        {
+
+            FileLog.Log(
+                $"{(int)user.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot)}, " +
+                $"{(int)user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot)}, " +
+                $"{(int)user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot) * 45}," +
+                $"{(int)user.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot) + (int)user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot) * 45}");
+
+
+            PlayerId = user.UserId;
+            PlayerName = user.RawName;
+            ClanId = user.ClanId;
+            ClanName = user.ClassName;
+
+
+            Levels = new int[3] {
+                user.GetLevel(Muse.Goi2.Entity.AvatarClass.Pilot) + user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Pilot) * 45,
+                user.GetLevel(Muse.Goi2.Entity.AvatarClass.Gunner) + user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Gunner) * 45,
+                user.GetLevel(Muse.Goi2.Entity.AvatarClass.Engineer) + user.GetPrestigeLevel(Muse.Goi2.Entity.AvatarClass.Engineer) * 45 };
+            AvgLevel = user.AverageLevel;
+            MatchesPlayed = NetworkedPlayer.ByUserId[user.UserId].MatchesPlayed; // TODO: not sure if all players in the match are always loaded.
+
+            CrewClass = (int)user.CurrentClass;
+            foreach (var loadout in user.Loadouts[user.CurrentClass].GetCurrentSkillList(user.CurrentCrew.Match.CreatedGameType).GetSkills(user.CurrentCrew.Match.CreatedGameType))
+            {
+
+            }
+
+            //user.Loadouts[user.CurrentClass].GetCurrentSkillList(Muse.Goi2.Entity.GameType.Skirmish).GetSkills(Muse.Goi2.Entity.GameType.Skirmish)[0].Type;
+            //ClanId = player.User.ClanId,
+            //ClanName = player.User.ClanTag
+        }
     }
 }
