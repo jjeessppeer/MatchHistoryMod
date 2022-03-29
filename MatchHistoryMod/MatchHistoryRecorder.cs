@@ -14,6 +14,12 @@ using Muse.Goi2.Entity;
 
 using System.IO;
 using System.Net;
+using System.Collections;
+using LitJson;
+
+using System.Net;
+using System.Text;
+using System.IO;
 
 namespace MatchHistoryMod
 {
@@ -21,13 +27,42 @@ namespace MatchHistoryMod
     public static class MatchHistoryRecorder
     {
 
-        //private const string _UploadURL = "http://127.0.0.1:80";
+        private const string _UploadURL = "http://127.0.0.1:80";
 
 
         static MatchHistoryRecorder()
         {
         }
 
+
+        public static void SaveMatchDataLocal(LobbyData record)
+        {
+
+        }
+
+        public static void UploadMatchData(LobbyData record)
+        {
+            string recordJSON = JsonConvert.SerializeObject(record);
+
+
+
+            var httpWebRequest = (HttpWebRequest)WebRequest.Create(_UploadURL);
+            httpWebRequest.ContentType = "application/json";
+            httpWebRequest.Method = "POST";
+
+            using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
+            {
+                streamWriter.Write(recordJSON);
+            }
+
+            var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+            {
+                var result = streamReader.ReadToEnd();
+            }
+
+
+        }
         //public static void SaveMatchData(MatchData matchData)
         //{
         //    //FileLog.Log(JsonConvert.SerializeObject(matchData));
@@ -50,10 +85,132 @@ namespace MatchHistoryMod
         private static void MatchComplteStateEnter()
         {
             FileLog.Log("NEW LOBBY DATA");
-            var v = MatchLobbyView.Instance.GetPlayerCrew(NetworkedPlayer.Local.UserId).Match;
+            //var v = MatchLobbyView.Instance.GetPlayerCrew(NetworkedPlayer.Local.UserId).Match;
             FileLog.Log("Starting Lobby data load");
-            LobbyData d = new LobbyData(v);
+            LobbyData d = new LobbyData(MatchLobbyView.Instance, Mission.Instance);
+            FileLog.Log($"Lobby data loaded successfully");
             FileLog.Log($"\n{JsonConvert.SerializeObject(d)}\n");
+
+
+            // Use to get time of match and some other stats
+            //FileLog.Log("Requesting match stats pre");
+            //MatchActions.GetMatchStats(new Muse.Networking.ExtensionResponseDelegate(GetMatchStats));
+            //FileLog.Log("Requesting match stats after");
+        }
+
+
+        public static void GetMatchStats(Muse.Networking.ExtensionResponse resp)
+        {
+            JsonData jsonData = resp.JsonData;
+            Dictionary<string, int> dictionary = new Dictionary<string, int>();
+            IDictionary dictionary2 = jsonData["stats"];
+            if (dictionary2 != null)
+            {
+                IDictionaryEnumerator enumerator = dictionary2.GetEnumerator();
+                try
+                {
+                    while (enumerator.MoveNext())
+                    {
+                        object obj = enumerator.Current;
+                        DictionaryEntry dictionaryEntry = (DictionaryEntry)obj;
+                        dictionary[dictionaryEntry.Key.ToString()] = (int)((JsonData)dictionaryEntry.Value);
+                    }
+                }
+                finally
+                {
+                    IDisposable disposable;
+                    if ((disposable = (enumerator as IDisposable)) != null)
+                    {
+                        disposable.Dispose();
+                    }
+                }
+            }
+            else
+            {
+                MuseLog.InfoFormat("no statsData", new object[0]);
+            }
+            Dictionary<int, float> dictionary3 = new Dictionary<int, float>();
+            IDictionary dictionary4 = jsonData["quests"];
+            if (dictionary4 != null)
+            {
+                IDictionaryEnumerator enumerator2 = dictionary4.GetEnumerator();
+                try
+                {
+                    while (enumerator2.MoveNext())
+                    {
+                        object obj2 = enumerator2.Current;
+                        DictionaryEntry dictionaryEntry2 = (DictionaryEntry)obj2;
+                        int num = -1;
+                        if (int.TryParse(dictionaryEntry2.Key.ToString(), out num) && num != -1)
+                        {
+                            dictionary3[num] = (float)((JsonData)dictionaryEntry2.Value);
+                        }
+                    }
+                }
+                finally
+                {
+                    IDisposable disposable2;
+                    if ((disposable2 = (enumerator2 as IDisposable)) != null)
+                    {
+                        disposable2.Dispose();
+                    }
+                }
+            }
+            else
+            {
+                MuseLog.InfoFormat("no quests data", new object[0]);
+            }
+            Dictionary<string, int> dictionary5 = new Dictionary<string, int>();
+            IDictionary dictionary6 = jsonData["crewStats"];
+            if (dictionary6 != null)
+            {
+                IDictionaryEnumerator enumerator3 = dictionary6.GetEnumerator();
+                try
+                {
+                    while (enumerator3.MoveNext())
+                    {
+                        object obj3 = enumerator3.Current;
+                        DictionaryEntry dictionaryEntry3 = (DictionaryEntry)obj3;
+                        string key = dictionaryEntry3.Key.ToString();
+                        dictionary5[key] = (int)((JsonData)dictionaryEntry3.Value);
+                    }
+                }
+                finally
+                {
+                    IDisposable disposable3;
+                    if ((disposable3 = (enumerator3 as IDisposable)) != null)
+                    {
+                        disposable3.Dispose();
+                    }
+                }
+                UIMatchEndCrewPanel.instance.SetStats(dictionary5);
+            }
+            else
+            {
+                MuseLog.InfoFormat("no crewStats data", new object[0]);
+            }
+
+            FileLog.Log($"STAT DICTIONARY");
+            foreach (KeyValuePair<string, int> entry in dictionary)
+            {
+                FileLog.Log($"{entry.Key}: {entry.Value}");
+            }
+
+            FileLog.Log($"CREW DICTIONARY");
+            foreach (KeyValuePair<string, int> entry in dictionary5)
+            {
+                FileLog.Log($"{entry.Key}: {entry.Value}");
+            }
+            FileLog.Log($"goodbye");
+        }
+
+        public static void LogStats(IDictionary<string, int> statsData)
+        {
+            FileLog.Log("__MATCH END STATS__");
+            for (int i=0; i<statsData.Count; ++i)
+            {
+                FileLog.Log($"{statsData.ElementAt(i).Key}: {statsData.ElementAt(i).Value}\n");
+            }
         }
     }
 

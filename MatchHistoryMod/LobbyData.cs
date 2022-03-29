@@ -23,104 +23,155 @@ namespace MatchHistoryMod
 
         public int MapId;
         public string MapName;
-        public int MaxPlayers;
-        public int CurrentPlayers;
-        public int CurrentPilots;
+        public int TeamSize;
+        public int TeamCount;
 
-        public CrewData[] Crews;
+        //public int CurrentPlayers;
+        //public int CurrentPilots;
+
+        public ShipData[] Ships;
         //public PlayerData[] Spectators = new PlayerData[4];
         //public PlayerData[] AllPlayers = new PlayerData[20]; // 16 players + 4 spectators.
 
         public int[] Scores = new int[2];
 
         public int Status; // Lobby, Loading, Running, Ended
-        public int? EndReason;
-        public long StartDate;
+        //public int? EndReason;
+        //public long StartDate;
         public long? EndDate = null;
 
 
-        public LobbyData(MatchEntity matchEntity)
+        public LobbyData(MatchLobbyView mlv, Mission mission)
         {
-            FileLog.Log($"Loading lobby data {matchEntity.ToString()}");
-            MatchId = matchEntity.MatchId;
-            MapName = matchEntity.Map.NameText.En;
-            MapId = matchEntity.Map.Id;
-            MaxPlayers = matchEntity.MaxPlayerCount;
-            CurrentPlayers = matchEntity.PlayerCount;
-            CurrentPilots = matchEntity.CaptainCount;
+            FileLog.Log($"Loading lobby data");
+            MatchId = mlv.MatchId;
+            MapName = mlv.Map.NameText.En;
+            MapId = mlv.Map.Id;
+            TeamSize = mission.shipsPerTeam;
+            TeamCount = mission.numberOfTeams;
+            Ships = new ShipData[TeamSize * TeamCount];
 
-            if (matchEntity.Running) Status = 2;
-            if (matchEntity.Loading) Status = 1;
-            if (matchEntity.EndReason.HasValue) Status = 3;
+            //CurrentPlayers = matchEntity.PlayerCount;
+            //CurrentPilots = matchEntity.CaptainCount;
 
-            EndReason = (int?)matchEntity.EndReason;
-            StartDate = matchEntity.StartDate.Ticks;
-            if (matchEntity.EndDate.HasValue) EndDate = matchEntity.EndDate.Value.Ticks;
+            Status = 0;
+            if (mlv.Loading) Status = 1;
+            if (mlv.Running) Status = 2;
+            if (mission.winningTeam != -1) Status = 3;
+
+
+
+            //EndReason = (int?)matchEntity.EndReason;
+            //StartDate = matchEntity.StartDate.Ticks;
+            //if (matchEntity.EndDate.HasValue) EndDate = matchEntity.EndDate.Value.Ticks;
 
             // Load all the crews
 
-            FileLog.Log($"Crews: {matchEntity.Crews.Count}");
-            Crews = new CrewData[matchEntity.Crews.Count];
-            for (int i = 0; i < matchEntity.Crews.Count; ++i)
+            FileLog.Log($"Crews: {mlv.CrewShips.Count}");
+            //Crews = new ShipData[mlv.CrewShips.Count];
+            for (int i = 0; i < mlv.CrewShips.Count; ++i)
             {
-                Crews[i] = new CrewData(matchEntity.Crews[i]);
-            }
-        }
-    }
+                FileLog.Log($"Trying to load ship {i}");
 
-    public class CrewData
-    {
-        public ShipData Ship;
-        public PlayerData[] Players = new PlayerData[4];
-        public CrewData(CrewEntity crewEntity)
-        {
-            FileLog.Log($"Loading crew data {crewEntity.ToString()}");
-            Ship = new ShipData(crewEntity.Ship);
-            for (int i = 0; i < 4; ++i)
-            {
-                if (crewEntity.Slots[i] == null)
+                //if (mlv.CrewShips[i] == null || mlv.Crews[i] == null) ;
+                if (mlv.CrewShips[i] == null)
                 {
-                    FileLog.Log($"Null crew slot {i}");
+                    FileLog.Log($"Null ship {i}");
                     continue;
                 }
-                if (crewEntity.Slots[i].PlayerEntity == null)
+                if (mlv.FlatCrews[i] == null)
                 {
-                    FileLog.Log($"Null player {i}");
+                    FileLog.Log($"Null crew {i}");
                     continue;
                 }
-                Players[i] = new PlayerData(crewEntity.Slots[i].PlayerEntity);
+
+                FileLog.Log($"Loading ship");
+                Ships[i] = new ShipData(mlv.CrewShips[i], mlv.FlatCrews[i]);
+                FileLog.Log($"Ship loaded");
             }
+            FileLog.Log($"All ships loaded");
         }
     }
 
     public class ShipData
     {
-        public int ShipType;
-        public int[] Loadout = new int[6];
-
+        public int ShipModel;
+        public int[] ShipLoadout = new int[6];
         public string ShipName;
 
-        public ShipData(ShipEntity shipEntity)
+        public PlayerData[] Players = new PlayerData[4];
+
+        public ShipData(Muse.Goi2.Entity.Vo.CrewShipVO ship, CrewEntity crew)
         {
-            FileLog.Log($"Loading ship data {shipEntity.ToString()}");
-            ShipType = 0;
-            ShipName = shipEntity.Name;
+            FileLog.Log($"Loading ship data {ship.ToString()}");
+
+            ShipModel = ship.ModelId;
+            ShipName = ship.Name;
+            
+            // Load ship loadout
+            //crewship.Equipments
+
+            for (int i=0; i<ship.Equipments.Count; ++i)
+            {
+               ShipLoadout[i] = ship.Equipments[i].SlotItemId;
+            }
+
+            // Load player data.
+            //crewship.pl
+
+         
+            for (int i = 0; i < 4; ++i)
+            {
+                if (crew.Slots[i] == null)
+                {
+                    FileLog.Log($"Null crew slot {i}");
+                    continue;
+                }
+                if (crew.Slots[i].PlayerEntity == null)
+                {
+                    FileLog.Log($"Null player {i}");
+                    continue;
+                }
+                Players[i] = new PlayerData(crew.Slots[i]);
+            }
+            FileLog.Log($"Ship complete");
         }
     }
 
+
     public class PlayerData
     {
+        public int UserId;
         public string Name;
         public string Clan;
-        public int Matches;
-        public int Level;
-        public int Role;
 
-        public PlayerData(UserAvatarEntity playerEntity)
+        public int Class;
+        public int Level;
+
+        public List<int> Skills;
+        //public int[] PilotEquipment = new int[3];
+        //public int[] GunnerEquipment = new int[3];
+        //public int[] EngiEquipment = new int[3];
+
+        public int MatchCount;
+        public int MatchCountRecent;
+
+        public PlayerData(CrewSlotData playerData)
         {
-            FileLog.Log($"Loading player data {playerEntity.ToString()}");
-            Name = playerEntity.RawName;
+            UserAvatarEntity playerEntity = playerData.PlayerEntity;
+            FileLog.Log($"Loading player data {playerData.ToString()}");
+            
+            Level = playerEntity.CurrentPrestigeRank;
+            UserId = playerEntity.Id;
+            Name = playerEntity.Name;
             Clan = playerEntity.ClanTag;
+            Class = (int)playerEntity.CurrentClass;
+
+            //playerEntity.Loadouts[playerEntity.CurrentClass].Equipments;
+            Skills = playerEntity.CurrentSkills;
+            MatchCountRecent = playerEntity.MatchCountInThirtyDays;
+            //playerEntity.count
+
         }
     }
 }
