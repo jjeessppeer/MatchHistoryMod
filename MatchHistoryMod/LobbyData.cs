@@ -22,6 +22,7 @@ namespace MatchHistoryMod
         public string MatchId;
 
         public int MapId;
+        public int GameMode;
         public string MapName;
         public int TeamSize;
         public int TeamCount;
@@ -39,12 +40,12 @@ namespace MatchHistoryMod
         {
             MatchId = mlv.MatchId;
             MapName = mlv.Map.NameText.En;
+            GameMode = (int)mlv.Map.GameMode;
 
             MapId = mlv.Map.Id;
             TeamSize = mission.shipsPerTeam;
             TeamCount = mission.numberOfTeams;
             Ships = new ShipData[TeamSize * TeamCount];
-
             Status = 0;
             if (mlv.Loading) Status = 1;
             if (mlv.Running) Status = 2;
