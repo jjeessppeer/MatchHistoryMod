@@ -1,8 +1,11 @@
-# MatchHistoryMod
-
 ## Features
-Your match history is logged into a file.
-Match history can be uploaded to a server. 
+Records statistics at the end of a match and uploads them to a server.
 
 ## Installation
-TODO
+
+### With Buffkit already installed
+1. Download *MatchHistoryMod.dll* from the [releases](https://github.com/jjeessppeer/MatchHistoryMod/releases) page. 
+2. Put the file into [Game Directory]/BepinEx/Plugins
+
+### Full installation (if you have no previous mods)
+-TODO-
