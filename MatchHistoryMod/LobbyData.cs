@@ -27,9 +27,9 @@ namespace MatchHistoryMod
         public int TeamSize;
         public int TeamCount;
 
-        public ShipData[] Ships;
+        public List<ShipData> Ships = new List<ShipData>();
 
-        public int[] Scores = new int[2];
+        public List<int> Scores = new List<int>();
         public int Winner;
         public int MatchTime;
 
@@ -45,16 +45,14 @@ namespace MatchHistoryMod
             MapId = mlv.Map.Id;
             TeamSize = mission.shipsPerTeam;
             TeamCount = mission.numberOfTeams;
-            Ships = new ShipData[TeamSize * TeamCount];
+            //Ships = new ShipData[TeamSize * TeamCount];
             Status = 0;
             if (mlv.Loading) Status = 1;
             if (mlv.Running) Status = 2;
             if (mission.winningTeam != -1) Status = 3;
             Winner = mission.winningTeam;
-            for (int i = 0; i < TeamCount; ++i)
-            {
-                Scores[i] = mission.TeamScore(i);
-            }
+
+            for (int i = 0; i < TeamCount; ++i) Scores.Add(mission.TeamScore(i));
 
             //EndReason = (int?)matchEntity.EndReason;
             //StartDate = matchEntity.StartDate.Ticks;
@@ -72,7 +70,8 @@ namespace MatchHistoryMod
                 {
                     continue;
                 }
-                Ships[i] = new ShipData(mlv.CrewShips[i], mlv.FlatCrews[i]);
+                Ships.Add(new ShipData(mlv.CrewShips[i], mlv.FlatCrews[i]));
+                //Ships[i] = new ShipData(mlv.CrewShips[i], mlv.FlatCrews[i]);
             }
         }
     }
@@ -80,9 +79,11 @@ namespace MatchHistoryMod
     public class ShipData
     {
         public int ShipModel;
-        public int[] ShipLoadout = new int[6];
+        public List<int> ShipLoadout = new List<int>();
+        public List<string> SlotNames = new List<string>();
         public string ShipName;
         public int Team;
+        public int ShipIndex;
 
         public PlayerData[] Players = new PlayerData[4];
 
@@ -97,7 +98,8 @@ namespace MatchHistoryMod
 
             for (int i=0; i<ship.Equipments.Count; ++i)
             {
-               ShipLoadout[i] = ship.Equipments[i].SlotItemId;
+                ShipLoadout.Add(ship.Equipments[i].SlotItemId);
+                SlotNames.Add(ship.Equipments[i].SlotName);
             }
 
             // Load player data.

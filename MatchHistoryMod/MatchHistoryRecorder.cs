@@ -25,6 +25,7 @@ namespace MatchHistoryMod
         public static void UploadMatchData(LobbyData record)
         {
             const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
+            //const string _UploadURL = "http://localhost/submit_match_history";
             string recordJSON = JsonConvert.SerializeObject(record);
             FileLog.Log($"Uploading match record...\n{recordJSON}");
 
@@ -170,6 +171,7 @@ namespace MatchHistoryMod
             {
                 MatchTime = dictionary5["Time Completed"]
             };
+            //FileLog.Log(JsonConvert.SerializeObject(d));
             UploadMatchData(d);
         }
     }
