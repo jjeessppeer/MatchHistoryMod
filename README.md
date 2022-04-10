@@ -1,5 +1,5 @@
 ## Features
-Records statistics at the end of a match and uploads them to a server.
+Records statistics at the end of a match and uploads them to a server. View at **https://statsoficarus.xyz/#matchHistory**
 
 ## Installation
 
