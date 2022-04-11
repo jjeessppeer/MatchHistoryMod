@@ -19,30 +19,33 @@ namespace MatchHistoryMod
 {
     public class LobbyData
     {
+        public string ModVersion;
         public string MatchId;
+        public bool Passworded;
 
         public int MapId;
-        public int GameMode;
         public string MapName;
+        public int GameMode;
         public int TeamSize;
         public int TeamCount;
 
-        public List<ShipData> Ships = new List<ShipData>();
-
-        public List<int> Scores = new List<int>();
         public int Winner;
         public int MatchTime;
-
         public int Status; // Lobby, Loading, Running, Ended
+        public List<int> Scores = new List<int>();
+
+        public List<ShipData> Ships = new List<ShipData>();
 
 
         public LobbyData(MatchLobbyView mlv, Mission mission)
         {
+            ModVersion = MatchHistoryMod.pluginVersion;
             MatchId = mlv.MatchId;
-            MapName = mlv.Map.NameText.En;
-            GameMode = (int)mlv.Map.GameMode;
+            Passworded = mlv.HasPassword;
 
             MapId = mlv.Map.Id;
+            MapName = mlv.Map.NameText.En;
+            GameMode = (int)mlv.Map.GameMode;
             TeamSize = mission.shipsPerTeam;
             TeamCount = mission.numberOfTeams;
             //Ships = new ShipData[TeamSize * TeamCount];
@@ -79,11 +82,10 @@ namespace MatchHistoryMod
     public class ShipData
     {
         public int ShipModel;
-        public List<int> ShipLoadout = new List<int>();
-        public List<string> SlotNames = new List<string>();
         public string ShipName;
         public int Team;
-        public int ShipIndex;
+        public List<int> ShipLoadout = new List<int>();
+        public List<string> SlotNames = new List<string>();
 
         public PlayerData[] Players = new PlayerData[4];
 
@@ -131,10 +133,10 @@ namespace MatchHistoryMod
         public int Class;
         public int Level;
 
-        public List<int> Skills;
-
         public int MatchCount;
         public int MatchCountRecent;
+
+        public List<int> Skills;
 
         public PlayerData(CrewSlotData playerData)
         {

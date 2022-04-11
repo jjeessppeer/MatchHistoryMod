@@ -16,6 +16,8 @@ using System.IO;
 using System.Net;
 using System.Collections;
 using LitJson;
+using MuseBase.Multiplayer.Unity;
+using MuseBase.Multiplayer;
 
 namespace MatchHistoryMod
 {
@@ -27,7 +29,6 @@ namespace MatchHistoryMod
             const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
             //const string _UploadURL = "http://localhost/submit_match_history";
             string recordJSON = JsonConvert.SerializeObject(record);
-            FileLog.Log($"Uploading match record...\n{recordJSON}");
 
             var request = (HttpWebRequest)WebRequest.Create(_UploadURL);
             var data = Encoding.ASCII.GetBytes(recordJSON);
@@ -38,28 +39,33 @@ namespace MatchHistoryMod
 
             try
             {
+                MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
                 using (var stream = request.GetRequestStream())
                 {
                     stream.Write(data, 0, data.Length);
                 }
-                FileLog.Log($"Uploaded record.");
-            }
-            catch (System.Net.WebException e)
-            {
-                FileLog.Log($"Upload failed. Server unresponsive.\n{e.ToString()}");
-            }
 
-            try
-            {
                 var response = (HttpWebResponse)request.GetResponse();
                 var responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
-                FileLog.Log($"Server responded.");
+                int responseCode = (int)response.StatusCode;
             }
             catch (System.Net.WebException e)
             {
-                FileLog.Log($"Upload failed. No response.\n{e.ToString()}");
+                int status = (int)e.Status;
+                if (status == 7)
+                {
+                    var responseString = new StreamReader(e.Response.GetResponseStream()).ReadToEnd();
+                    MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(responseString));
+                }
+                else if (status == 14)
+                {
+                    MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Upload failed: Match history server unresponsive."));
+                }
+                else
+                {
+                }
             }
-            FileLog.Log($"Upload finished.\n{recordJSON}");
+            //FileLog.Log($"Upload finished.\n{recordJSON}");
         }
 
         // Called when match ends and post game screen is shown.
