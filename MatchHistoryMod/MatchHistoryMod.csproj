@@ -101,6 +101,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActiveMatchStats.cs" />
     <Compile Include="LobbyData.cs" />
     <Compile Include="MatchHistoryRecorder.cs" />
     <Compile Include="MatchHistoryMod.cs" />

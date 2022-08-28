@@ -26,8 +26,8 @@ namespace MatchHistoryMod
     {
         public static void UploadMatchData(LobbyData record)
         {
-            const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
-            //const string _UploadURL = "http://localhost/submit_match_history";
+            //const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
+            const string _UploadURL = "http://localhost/submit_match_history";
             string recordJSON = JsonConvert.SerializeObject(record);
 
             var request = (HttpWebRequest)WebRequest.Create(_UploadURL);
