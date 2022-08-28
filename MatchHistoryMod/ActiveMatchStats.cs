@@ -108,10 +108,10 @@ namespace MatchHistoryMod
 
         class GameData
         {
-            public List<ShotData> Shots = new List<ShotData>();
-            public List<HitData> Hits = new List<HitData>();
             public long GameStartTimestamp;
+            public List<ShotData> Shots = new List<ShotData>();
 
+            // Cool stuff todo:
             // Heatmap / ShipPositions
             // Kills
             // Spawns
@@ -124,29 +124,38 @@ namespace MatchHistoryMod
                 GameStartTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
             }
 
-            public void MatchHitWithShot(HitData hit)
+            public void TurretFired(Turret turret)
             {
-                // Match the hit with the shot that created it.
-                int bestMatch = -1;
-                for (int i = 0; i < Shots.Count; i++)
-                {
-                    if (bestMatch == -1 && Shots[i].HitIndex == -1)
-                    {
-                        bestMatch == i;
-                    }
-                    else 
-                    {
-
-                    }
-                }
-
-                return null;
+                FileLog.Log($"Projectile Fired {turret.SlotName} {turret.name}");
+                ShotData shot = new ShotData(turret, Shots.Count);
+                Shots.Add(shot);
             }
+
+            //public void MatchHitWithShot(HitData hit)
+            //{
+            //    // Match the hit with the shot that created it.
+            //    int bestMatch = -1;
+            //    for (int i = 0; i < Shots.Count; i++)
+            //    {
+            //        if (bestMatch == -1 && Shots[i].HitIndex == -1)
+            //        {
+            //            bestMatch == i;
+            //        }
+            //        else 
+            //        {
+
+            //        }
+            //    }
+
+            //    return null;
+            //}
         }
 
         class HitDamage
         {
-            public int ShotId;
+            public int HitIndex;
+            public int ShotIndex;
+
             public int TargetShipIndex;
             public string TargetComponentType;
 
@@ -160,90 +169,115 @@ namespace MatchHistoryMod
 
         class ShotData
         {
+            public int ShotIndex;
             public long ShotTimestamp;
             public long HitTimestamp = -1;
             public bool DidHit = false;
 
             public int ShooterUserId;
-            public int ShooterShipIndex;
-            public int GunIndex;
+            public int ShipId;
+            public int GunSlot;
 
             public string GunType;
             public string AmmoType;
             
-            public float Velocity;
+            //public float Velocity;
             public Vector3 GunPosition;
-            public Vector3 ShotDirection;
+            public Vector3 GunAngles;
 
             // Target pos predicted on projectile shot, updated if hit.
+            public int TargetShipId;
             public Vector3 TargetPosition; 
-            public int TargetDistance;
+            public float TargetDistance;
 
-            public List<HitDamage> Damages;
+            public List<HitDamage> Damages = new List<HitDamage>();
 
-            // Test how closely a reported hit seems to correlate to this shot.
-            public float RateHitMatch()
-            {
-                return -1;
-            }
             
-            public ShotData()
+            public ShotData(Turret turret, int shotIndex)
             {
+                // TODO: Use match time timestamp.
                 var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 ShotTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
+
+                ShotIndex = shotIndex;
+
+                NetworkedPlayer user = turret.UsingPlayer;
+                ShooterUserId = -2; // Default no user
+                if (user != null) // Player or AI
+                {
+                    ShooterUserId = user.UserId;
+                }
+                if (ShooterUserId == 0) ShooterUserId = -1; // AI user
+
+
+                ShipId = turret.Ship.ShipId;
+
+                char slotName = turret.SlotName[turret.SlotName.Length-1];
+                GunSlot = slotName - '0';
+
+                GunPosition = turret.position;
+                GunAngles = turret.eulerAngles;
+                //Vector3 forwardsVector = Vector3()
+
+                // Angles to directional vector
+                double xzLen = Math.Cos(turret.WorldPitch * 0.0174533);
+                Vector3 shotDirection = new Vector3(
+                    (float) (xzLen * -Math.Sin(-turret.WorldYaw * 0.0174533)),
+                    (float) -Math.Sin(turret.WorldPitch * 0.0174533), 
+                    (float) (xzLen * Math.Cos(turret.WorldYaw * 0.0174533))
+                );
+
+                Ship targetShip = null;
+                double targetAngle = -1;
+                double targetDistance = -1;
+                foreach (Ship ship in ShipRegistry.All)
+                {
+                    if (ship.ShipId == ShipId) continue; // Dont target own ship.
+
+                    Vector3 targetVector = ship.Position - GunPosition;
+                    double dot = Vector3.Dot(targetVector, shotDirection);
+                    double magA = Vector3.Magnitude(targetVector);
+                    double magB = Vector3.Magnitude(shotDirection);
+                    double angle = Math.Acos(dot / (magA * magB));
+                    angle = Math.Abs(angle);
+                    double distance = Vector3.Magnitude(targetVector);
+
+
+                    if (targetShip == null || angle < targetAngle)
+                    {
+                        targetShip = ship;
+                        targetAngle = angle;
+                        targetDistance = (float)distance;
+                    }
+                }
+                if (targetShip != null)
+                {
+                    TargetShipId = targetShip.ShipId;
+                    TargetPosition = targetShip.position;
+                    TargetDistance = (float)targetDistance;
+                    //FileLog.Log($"Shot data: " +
+                    //    $"\n\ttgt {GunPosition} ,  {targetShip.position} ,  {targetDistance}" +
+                    //    $"\n\tywp: {turret.WorldYaw} {turret.WorldPitch}" +
+                    //    $"\n\tdir: {shotDirection}");
+                    FileLog.Log($"Target ship: {targetShip.ShipId} {targetShip.name} D: {TargetDistance} A: {targetAngle}");
+                }
+
+
+
+
             }
 
-            public float DistanceTravelledAt(long timestamp)
-            {
-                // TODO: handle mines.
-                return Velocity * timestamp / 1000;
-            }
+            //public float DistanceTravelledAt(long timestamp)
+            //{
+            //    // TODO: handle mines.
+            //    return Velocity * timestamp / 1000;
+            //}
         }
 
-
-        
-
-        class HitData
-        {
-            public class HitDamage
-            {
-            }
-
-
-            public class SubHit
-            {
-                public int ShooterId;
-                public int ShooterShipId;
-                public int ShooterShipIndex;
-                public int TargetId;
-                public int TargetShipId;
-                public int TargetShipIndex;
-
-                public string TargetComponentType;
-                public bool DirectHit;
-                public bool CoreHit;
-                public bool ComponentBroken;
-                
-                public int Distance;
-                public int Damage;
-            }
-            public long Timestamp;
-            public int ShotIndex;
-            public List<SubHit> SubHits = new List<SubHit>();
-            public HitData()
-            {
-                var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                Timestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
-            }
-            public void addSubHit(SubHit s)
-            {
-                SubHits.Add(s);
-            }
-        }
 
         [HarmonyPostfix]
         [HarmonyPatch(typeof(Turret), "OnRemoteUpdate")]
-        private static void ProjectileShot(Turret __instance)
+        private static void TurretUpdate(Turret __instance)
         {
             int? oldAmmunition = Traverse.Create(__instance).Field("oldAmmunition").GetValue() as int?;
             int? ammounition = Traverse.Create(__instance).Field("ammunition").GetValue() as int?;
@@ -257,7 +291,7 @@ namespace MatchHistoryMod
                 FileLog.Log("Reloaded");
                 oldAmmunition = clipSize;
             }
-            if (oldAmmunition <= ammounition) return; // Continue if ammo decreased.
+            if (oldAmmunition <= ammounition) return; // Continue only if ammo decreased.
 
             if (ammounition == 0 && oldAmmunition >= 3)
             {
@@ -266,26 +300,39 @@ namespace MatchHistoryMod
                 return;
             }
 
+            // Todo, multiple shots same frame?
+            if (oldAmmunition - ammounition != 1)
+            {
+                FileLog.Log("MULTISHOT");
 
-            NetworkedPlayer user = __instance.UsingPlayer;
-            int userId = -2;
-            if (user != null)
-            {
-                userId = user.UserId;
             }
-            if (userId == 0) userId = -1;
-            if (userId == -2)
+            int shotsFired = (int) (oldAmmunition - ammounition);
+            for (int i = 0; i < shotsFired; i++)
             {
-                FileLog.Log("No user");
+                ActiveGameData.TurretFired(__instance);
             }
-            //System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-            //FileLog.Log(t.ToString());
-            FileLog.Log($"Projectile Fired Post" +
-                $"\n\tTurretId: {__instance.ItemId}" +
-                $"\n\tUserId: {userId}" +
-                $"\n\tOldAmmo: {oldAmmunition}" +
-                $"\n\tNewAmmo: {ammounition}" +
-                $"\n\tClipSize: {clipSize}");
+
+
+            //NetworkedPlayer user = __instance.UsingPlayer;
+            //int userId = -2;
+            //if (user != null)
+            //{
+            //    userId = user.UserId;
+            //}
+            //if (userId == 0) userId = -1;
+            //if (userId == -2)
+            //{
+            //    // Should never happen
+            //    FileLog.Log("No user");
+            //}
+            ////System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
+            ////FileLog.Log(t.ToString());
+            //FileLog.Log($"Projectile Fired Post" +
+            //    $"\n\tTurretId: {__instance.ItemId}" +
+            //    $"\n\tUserId: {userId}" +
+            //    $"\n\tOldAmmo: {oldAmmunition}" +
+            //    $"\n\tNewAmmo: {ammounition}" +
+            //    $"\n\tClipSize: {clipSize}");
             
         }
 
@@ -301,77 +348,77 @@ namespace MatchHistoryMod
             FileLog.Log($"Projectile hit {nHits}");
             FileLog.Log($"{evt.ToString()}");
 
-            HitData hitData = new HitData();
-            for (int i = 0; i < nHits; i++)
-            {
-                FileLog.Log($"Hit start");
+            //HitData hitData = new HitData();
+            //for (int i = 0; i < nHits; i++)
+            //{
+            //    FileLog.Log($"Hit start");
 
-                // Find the GameObject of the component hit based on identifier.
-                int targetId = (int)evt.GetInteger(i * 10 + 1);
-                int damage = (int)evt.GetInteger(i * 10 + 2);
-                int hitType = (int)evt.GetInteger(i * 10 + 4);
-                int shooterId = (int)evt.GetInteger(i * 10 + 6);
+            //    // Find the GameObject of the component hit based on identifier.
+            //    int targetId = (int)evt.GetInteger(i * 10 + 1);
+            //    int damage = (int)evt.GetInteger(i * 10 + 2);
+            //    int hitType = (int)evt.GetInteger(i * 10 + 4);
+            //    int shooterId = (int)evt.GetInteger(i * 10 + 6);
 
-                Muse.Vector3 museVec1 = evt.GetFixedVector(i * 10 + 3, 2); // Hit location?
-                Muse.Vector3 museVec2 = evt.GetFixedVector(i * 10 + 5, 2); // Hit location?
-                UnityEngine.Vector3 vec1 = new UnityEngine.Vector3(museVec1.x, museVec1.y, museVec1.z);
-                UnityEngine.Vector3 vec2 = new UnityEngine.Vector3(museVec2.x, museVec2.y, museVec2.z);
+            //    Muse.Vector3 museVec1 = evt.GetFixedVector(i * 10 + 3, 2); // Hit location?
+            //    Muse.Vector3 museVec2 = evt.GetFixedVector(i * 10 + 5, 2); // Hit location?
+            //    UnityEngine.Vector3 vec1 = new UnityEngine.Vector3(museVec1.x, museVec1.y, museVec1.z);
+            //    UnityEngine.Vector3 vec2 = new UnityEngine.Vector3(museVec2.x, museVec2.y, museVec2.z);
 
-                // Find the Repairable object in game object.
-                Transform targetTransform = MuseWorldObject.FindByNetworkId(targetId);
-                GameObject targetGO = targetTransform.gameObject;
-                Component[] components = targetGO.GetComponents<MonoBehaviour>();
-                Repairable targetComponent = null;
-                foreach (Component c in components)
-                {
-                    if (c is Engine || c is Hull || c is Turret || c is Balloon)
-                    {
-                        targetComponent = (Repairable)c;
-                        break;
-                    }
-                }
+            //    // Find the Repairable object in game object.
+            //    Transform targetTransform = MuseWorldObject.FindByNetworkId(targetId);
+            //    GameObject targetGO = targetTransform.gameObject;
+            //    Component[] components = targetGO.GetComponents<MonoBehaviour>();
+            //    Repairable targetComponent = null;
+            //    foreach (Component c in components)
+            //    {
+            //        if (c is Engine || c is Hull || c is Turret || c is Balloon)
+            //        {
+            //            targetComponent = (Repairable)c;
+            //            break;
+            //        }
+            //    }
 
-                // Make sure valid target component was found.
-                if (targetComponent == null) throw new Exception("Invalid component hit!");
+            //    // Make sure valid target component was found.
+            //    if (targetComponent == null) throw new Exception("Invalid component hit!");
 
-                Ship sourceShip = __instance.Ship;
-                Ship targetShip = targetComponent.Ship;
+            //    Ship sourceShip = __instance.Ship;
+            //    Ship targetShip = targetComponent.Ship;
 
-                int distance = (int)(__instance.transform.position - targetComponent.transform.position).magnitude;
-                bool directHit = i == 0;
-                bool coreHit = (hitType & 1) > 0;
-                bool componentBroken = targetComponent.Health - damage <= 1;
+            //    int distance = (int)(__instance.transform.position - targetComponent.transform.position).magnitude;
+            //    bool directHit = i == 0;
+            //    bool coreHit = (hitType & 1) > 0;
+            //    bool componentBroken = targetComponent.Health - damage <= 1;
 
-                HitData.SubHit subHit = new HitData.SubHit()
-                {
-                    ShooterId = shooterId,
-                    ShooterShipId = sourceShip.ShipId,
-                    ShooterShipIndex = sourceShip.CrewIndex,
-                    TargetId = targetId,
-                    TargetShipId = targetShip.ShipId,
-                    TargetShipIndex = targetShip.CrewIndex,
-                    TargetComponentType = targetComponent.Type.ToString(),
-                    DirectHit = directHit,
-                    CoreHit = coreHit,
-                    ComponentBroken = componentBroken,
-                    Damage = damage,
-                    Distance = distance
-                };
-                hitData.addSubHit(subHit);
-                string json = JsonConvert.SerializeObject(subHit);
-                FileLog.Log(json);
-                //FileLog.Log($"" +
-                //    $"{__instance.name} hit.\n\t" +
-                //    $"shooter: {shooterId}\n\t" +
-                //    $"TargetC: {targetComponent.name}\n\t" +
-                //    $"Extra: {}" +
-                //    $"Dist: {distance}\n\t" +
-                //    $"Damage: {damage}\n\t" +
-                //    $"FixedVec1: {vec1}\n\t" +
-                //    $"FixedVec2: {vec2}\n\t" +
-                //    $"TargetPos: {targetComponent.transform.position}\n\t" +
-                //    $"TurretPos: {__instance.transform.position}");
-            }
+            //    HitData.SubHit subHit = new HitData.SubHit()
+            //    {
+            //        ShooterId = shooterId,
+            //        ShooterShipId = sourceShip.ShipId,
+            //        ShooterShipIndex = sourceShip.CrewIndex,
+            //        TargetId = targetId,
+            //        TargetShipId = targetShip.ShipId,
+            //        TargetShipIndex = targetShip.CrewIndex,
+            //        TargetComponentType = targetComponent.Type.ToString(),
+            //        DirectHit = directHit,
+            //        CoreHit = coreHit,
+            //        ComponentBroken = componentBroken,
+            //        Damage = damage,
+            //        Distance = distance
+            //    };
+            //    hitData.addSubHit(subHit);
+            //    string json = JsonConvert.SerializeObject(subHit);
+            //    FileLog.Log(json);
+            //    //FileLog.Log($"" +
+            //    //    $"{__instance.name} hit.\n\t" +
+            //    //    $"shooter: {shooterId}\n\t" +
+            //    //    $"TargetC: {targetComponent.name}\n\t" +
+            //    //    $"Extra: {}" +
+            //    //    $"Dist: {distance}\n\t" +
+            //    //    $"Damage: {damage}\n\t" +
+            //    //    $"FixedVec1: {vec1}\n\t" +
+            //    //    $"FixedVec2: {vec2}\n\t" +
+            //    //    $"TargetPos: {targetComponent.transform.position}\n\t" +
+            //    //    $"TurretPos: {__instance.transform.position}");
+            //}
         }
 
 
