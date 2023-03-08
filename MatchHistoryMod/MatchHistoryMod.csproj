@@ -103,6 +103,7 @@
   <ItemGroup>
     <Compile Include="ActiveMatchStats.cs" />
     <Compile Include="LobbyData.cs" />
+    <Compile Include="MatchData.cs" />
     <Compile Include="MatchHistoryRecorder.cs" />
     <Compile Include="MatchHistoryMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
