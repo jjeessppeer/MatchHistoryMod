@@ -102,11 +102,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ActiveMatchStats.cs" />
+    <Compile Include="HitData.cs" />
     <Compile Include="LobbyData.cs" />
     <Compile Include="MatchData.cs" />
     <Compile Include="MatchHistoryRecorder.cs" />
     <Compile Include="MatchHistoryMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ShotData.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
