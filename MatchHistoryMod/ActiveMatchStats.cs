@@ -11,19 +11,65 @@ using LitJson;
 using Newtonsoft.Json;
 
 namespace MatchHistoryMod
-{   
-    //[HarmonyPatch]
-    //static class MatchStatsPatch
-    //{
-    //}
+{
 
     [HarmonyPatch]
     static class MatchDataRecorder
     {
-        //public static List<ShipStats> ShipStatList;
-        static GameData ActiveGameData;
+        public static GameData ActiveGameData;
         static long GameStartTimestamp;
 
+        public static string GetJSONDump()
+        {
+            return JsonConvert.SerializeObject(ActiveGameData);
+        }
+
+        struct TableKey
+        {
+            public int PlayerId;
+            public int GunId;
+        }
+        struct TableEntry
+        {
+            public int Shots;
+            public int Hits;
+        }
+        public static string GetTableDump()
+        {
+
+            Dictionary<TableKey, TableEntry> table = new Dictionary<TableKey, TableEntry>();
+            foreach (ShotData shot in ActiveGameData.GameShots)
+            {
+                TableKey key = new TableKey() { 
+                    PlayerId = shot.ShooterUserId,
+                    GunId = shot.GunItemId
+                };
+                if (!table.ContainsKey(key)) table.Add(key, new TableEntry() { Shots = 0, Hits = 0 });
+                TableEntry t = table[key];
+                t.Shots += 1;
+                if (shot.DidHit) t.Hits += 1;
+                table[key] = t;
+            }
+
+            string output = "Player\tGun\tShots\tHits\tAcc\n";
+            foreach(var kvp in table)
+            {
+                float shots = kvp.Value.Shots;
+                float hits = kvp.Value.Hits;
+                
+                double acc = Math.Round((hits / shots) * 100);
+                output += $"{kvp.Key.PlayerId}\t{kvp.Key.GunId}\t{shots}\t{hits}\t{acc}%\n";
+            }
+            return output;
+        }
+
+        public static void Reset()
+        {
+
+            ActiveGameData = new GameData();
+            var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            GameStartTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
+        }
 
         public static long GetActiveGameTimestamp()
         {
@@ -78,28 +124,16 @@ namespace MatchHistoryMod
             return result;
         }
 
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(UIAnnouncementDisplay), "HandleAnnouncement")]
-        private static void Announcment(Muse.Goi2.Entity.Announcement newAnnouncement, UIAnnouncementDisplay __instance)
-        {
-            //Mission mission = Mission.Instance;
-            //MatchLobbyView mlv = MatchLobbyView.Instance;
-            FileLog.Log($"Announcment HandleAnnouncement");
-            FileLog.Log($"{GetSubjectText(newAnnouncement)} | {GetVerbText(newAnnouncement)} | {GetObjectText(newAnnouncement)}");
-        }
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(UIAnnouncementDisplay), "HandleAnnouncement")]
+        //private static void Announcment(Muse.Goi2.Entity.Announcement newAnnouncement, UIAnnouncementDisplay __instance)
+        //{
+        //    //Mission mission = Mission.Instance;
+        //    //MatchLobbyView mlv = MatchLobbyView.Instance;
+        //    FileLog.Log($"Announcment HandleAnnouncement");
+        //    FileLog.Log($"{GetSubjectText(newAnnouncement)} | {GetVerbText(newAnnouncement)} | {GetObjectText(newAnnouncement)}");
+        //}
 
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(Mission), "Start")]
-        private static void MissionStarted()
-        {
-            //Mission mission = Mission.Instance;
-            //MatchLobbyView mlv = MatchLobbyView.Instance;
-            FileLog.Log($"Mission started");
-            ActiveGameData = new GameData();
-
-            var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            GameStartTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
-        }
 
         //[HarmonyPostfix]
         //[HarmonyPatch(typeof(Ship), "Awake")]
@@ -170,103 +204,6 @@ namespace MatchHistoryMod
         {
             if (evt.Action != 1) return;
             ActiveGameData.ProjectileHit(evt, __instance);
-            //int nHits = (int)evt.GetInteger(0);
-
-            //FileLog.Log($"Projectile hit {nHits}");
-            //FileLog.Log($"{evt.ToString()}");
-
-            //HitData hitData = new HitData();
-            //Vector3 hitLocation =  Vector3.zero;
-            //for (int i = 0; i < nHits; i++)
-            //{
-            //    FileLog.Log($"Hit start");
-
-            //    // Find the GameObject of the component hit based on identifier.
-            //    int targetId = (int)evt.GetInteger(i * 10 + 1);
-            //    int damage = (int)evt.GetInteger(i * 10 + 2);
-            //    int hitType = (int)evt.GetInteger(i * 10 + 4);
-            //    int shooterId = (int)evt.GetInteger(i * 10 + 6);
-
-            //    Muse.Vector3 museVec1 = evt.GetFixedVector(i * 10 + 3, 2); // Relative hit location to target component?
-            //    Muse.Vector3 museVec2 = evt.GetFixedVector(i * 10 + 5, 2); // Hit location when missed?
-            //    UnityEngine.Vector3 vec1 = new UnityEngine.Vector3(museVec1.x, museVec1.y, museVec1.z);
-            //    UnityEngine.Vector3 vec2 = new UnityEngine.Vector3(museVec2.x, museVec2.y, museVec2.z);
-
-            //    // Find the Repairable object in game object.
-            //    Transform targetTransform = MuseWorldObject.FindByNetworkId(targetId);
-            //    GameObject targetGO = targetTransform.gameObject;
-            //    Component[] components = targetGO.GetComponents<MonoBehaviour>();
-            //    Repairable targetComponent = null;
-            //    foreach (Component c in components)
-            //    {
-            //        if (c is Engine || c is Hull || c is Turret || c is Balloon)
-            //        {
-            //            targetComponent = (Repairable)c;
-            //            break;
-            //        }
-            //    }
-
-            //    // Make sure valid target component was found.
-            //    if (targetComponent == null) throw new Exception("Invalid component hit!");
-
-            //    Ship sourceShip = __instance.Ship;
-            //    Ship targetShip = targetComponent.Ship;
-
-            //    int distance = (int)(__instance.transform.position - targetComponent.transform.position).magnitude;
-            //    bool directHit = i == 0;
-            //    bool coreHit = (hitType & 1) > 0;
-            //    bool componentBroken = targetComponent.Health - damage <= 1;
-
-
-            //    if (i == 0)
-            //    {
-            //        hitLocation = targetComponent.transform.TransformPoint(vec1);
-            //    }
-            //    float AoEDistance = (targetComponent.transform.TransformPoint(vec1) - hitLocation).magnitude;
-
-
-            //    FileLog.Log($"" +
-            //        $"{__instance.id} hit.\n\t" +
-            //        $"Shooter: {shooterId}\n\t" +
-            //        $"TargetC: {targetComponent.name}\n\t" +
-            //        $"Extra: {}" +
-            //        $"AoEDistance: {AoEDistance}\n\t" +
-            //        $"Damage: {damage}\n\t" +
-            //        $"FixedVec1: {vec1}\n\t" +
-            //        $"FixedVec2: {vec2}\n\t" +
-            //        $"TargetPos: {targetComponent.transform.position}\n\t" +
-            //        $"TurretPos: {__instance.transform.position}");
-
-            //    //HitData.SubHit subHit = new HitData.SubHit()
-            //    //{
-            //    //    ShooterId = shooterId,
-            //    //    ShooterShipId = sourceShip.ShipId,
-            //    //    ShooterShipIndex = sourceShip.CrewIndex,
-            //    //    TargetId = targetId,
-            //    //    TargetShipId = targetShip.ShipId,
-            //    //    TargetShipIndex = targetShip.CrewIndex,
-            //    //    TargetComponentType = targetComponent.Type.ToString(),
-            //    //    DirectHit = directHit,
-            //    //    CoreHit = coreHit,
-            //    //    ComponentBroken = componentBroken,
-            //    //    Damage = damage,
-            //    //    Distance = distance
-            //    //};
-            //    //hitData.addSubHit(subHit);
-            //    //string json = JsonConvert.SerializeObject(subHit);
-            //    //FileLog.Log(json);
-            //    FileLog.Log($"" +
-            //        $"{__instance.name} hit.\n\t" +
-            //        $"shooter: {shooterId}\n\t" +
-            //        $"TargetC: {targetComponent.name}\n\t" +
-            //        $"Extra: {}" +
-            //        $"AoEDistance: {AoEDistance}\n\t" +
-            //        $"Damage: {damage}\n\t" +
-            //        $"FixedVec1: {vec1}\n\t" +
-            //        $"FixedVec2: {vec2}\n\t" +
-            //        $"TargetPos: {targetComponent.transform.position}\n\t" +
-            //        $"TurretPos: {__instance.transform.position}");
-            //}
         }
 
 

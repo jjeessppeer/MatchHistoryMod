@@ -13,7 +13,7 @@ using Muse.Goi2.Entity;
 
 namespace MatchHistoryMod
 {
-    class GameData
+    public class GameData
     {
         public List<ShotData> GameShots = new List<ShotData>();
         public List<HitData> GameHits = new List<HitData>();
@@ -26,45 +26,29 @@ namespace MatchHistoryMod
         public GameData()
         {
             //GameStartTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-            
         }
+
+        
 
         public void TurretFired(Turret turret)
         {
-            // Fire one projectile per buckshot.
-            //GunItem gunItem = CachedRepository.Instance.Get<GunItem>(turret.ItemId);
-            //int buckshots = 1;
-            //if (gunItem.Params.ContainsKey("iRaysPerShot"))
-            //{
-            //    buckshots = int.Parse(gunItem.Params["iRaysPerShot"]);
-            //}
-
-            FileLog.Log($"Adding shot {turret.SlotName} {turret.name}");
             ShotData shot = new ShotData(turret, GameShots.Count);
             GameShots.Add(shot);
-
-            string shotJson = JsonConvert.SerializeObject(GameShots[GameShots.Count - 1]);
-            FileLog.Log($"" +
-                $"NEW SHOT\n{shotJson}" +
-                $"");
-
         }
 
 
         public void ProjectileHit(MuseEvent evt, Turret turret)
         {
-            FileLog.Log($"Projectile Hit {turret.SlotName} {turret.name}");
-            FileLog.Log($"{evt}");
-            const int GATLING_ITEM_ID = 171;
-            const int FLAMER_ITEM_ID = 172;
-            const int LASER_ITEM_ID = 172;
-            if (turret.ItemId == GATLING_ITEM_ID || turret.ItemId == FLAMER_ITEM_ID)
-            {
-                // Fire rate is too high. Multiple hits are merged into one event.
-                // TODO: Split hit event into multiple.
-                // Check damage done, if higher than single shot vs component: split into x.
-                return;
-            }
+            //const int GATLING_ITEM_ID = 171;
+            //const int FLAMER_ITEM_ID = 172;
+            //const int LASER_ITEM_ID = 172;
+            //if (turret.ItemId == GATLING_ITEM_ID || turret.ItemId == FLAMER_ITEM_ID || turret.ItemId == LASER_ITEM_ID)
+            //{
+            //    // Fire rate is too high. Multiple hits are merged into one event.
+            //    // TODO: Split hit event into multiple.
+            //    // Check damage done, if higher than single shot vs component: split into x.
+            //    return;
+            //}
 
             int hitCount = (int)evt.GetInteger(0);
 
@@ -72,33 +56,24 @@ namespace MatchHistoryMod
             {
                 HitData hitData = HitData.ParseHitEvent(evt, turret, i);
                 GameHits.Add(hitData);
-                //string hitJson = JsonConvert.SerializeObject(hitData); 
-                //FileLog.Log($"" +
-                // $"HIT\n" +
-                // $"{hitJson}" +
-                // //$"\nMATCHED SHOT{shotJson}" +
-                // $"");
 
                 int shotIndex = FindMatchingShot(hitData);
                 if (shotIndex != -1)
                 {
                     GameShots[shotIndex].AddHit(hitData, GameHits.Count - 1);
-                    //FileLog.Log($"SHOT MATCHED\n" +
-                    //    $"{GameShots[shotIndex].ShotTimestamp}, {hitData.HitTimestamp}\n" +
-                    //    $"{GameShots[shotIndex]}");
+                    hitData.ShotIndex = shotIndex;
                 }
                 else
                 {
                     FileLog.Log("NO MATCHING SHOT?");
                 }
             }
+            //FileLog.Log(MatchDataRecorder.GetJSONDump());
 
-
-            // TODO: Do on match end for all shots instead.
             
         }
 
-        public float RateShotHitMatch(ShotData shot, HitData hit)
+        public float RateShotHitCorrelation(ShotData shot, HitData hit)
         {
             // Return how well shot and hit match
             // Smaller number means better match.
@@ -116,6 +91,7 @@ namespace MatchHistoryMod
             // Check if shot already has a hit to the specified component.
             foreach (int idx in shot.HitIndexes)
             {
+                if (shot.Buckshots > 1) continue;
                 if (GameHits[idx].TargetComponentSlot == hit.TargetComponentSlot && 
                     GameHits[idx].TargetShipId == hit.TargetShipId)
                 {
@@ -126,7 +102,6 @@ namespace MatchHistoryMod
 
             Vector3 predictedPosition = shot.PositionAt(hit.HitTimestamp);
             float posDiff = (predictedPosition - hit.PositionVec).magnitude;
-
             return posDiff;
         }
 
@@ -136,13 +111,15 @@ namespace MatchHistoryMod
             float bestMatchRating = float.MaxValue;
             for (int i = GameShots.Count - 1; i >= 0; --i)
             {
-                float rating = RateShotHitMatch(GameShots[i], hit);
+                // TODO: break condition when shot timestamp is some minimum value.
+                float rating = RateShotHitCorrelation(GameShots[i], hit);
                 if (rating == -1) continue;
                 if (rating < bestMatchRating)
                 {
                     bestMatchRating = rating;
                     bestMatchIndex = i;
                 }
+
             }
             return bestMatchIndex;
         }

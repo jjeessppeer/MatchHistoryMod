@@ -14,19 +14,19 @@ using Muse.Goi2.Entity;
 namespace MatchHistoryMod
 {
 
-    class ShotData
+    public class ShotData
     {
         public int ShotIndex;
         public long ShotTimestamp;
 
         public int Buckshots = 1;
-        public int BuckshotsHit = 0;
 
         public int ShooterUserId;
+        public int TeamIndex;
         public int ShipId;
         public int ShipIndex;
-        public int GunSlot;
 
+        public int GunSlot;
         public int GunItemId;
         public int AmmoItemId;
 
@@ -36,6 +36,7 @@ namespace MatchHistoryMod
         [JsonIgnore]
         public Vector3 GunDirection;
         public float[] GunDirectionArr;
+        public float[] ShipVelocity;
         public float MuzzleVelocity;
 
         // Target position predicted on projectile shot, updated if hit.
@@ -56,6 +57,9 @@ namespace MatchHistoryMod
             ShotIndex = shotIndex;
             ShipId = turret.Ship.ShipId;
             ShipIndex = turret.Ship.CrewIndex;
+            TeamIndex = turret.Ship.Side;
+            Vector3 velocityVec = turret.Ship.WorldVelocity;
+            ShipVelocity = new float[] { velocityVec.x, velocityVec.y, velocityVec.z };
 
             // Get the userId.
             NetworkedPlayer user = turret.UsingPlayer;
@@ -92,6 +96,7 @@ namespace MatchHistoryMod
             Ship targetShip = null;
             double targetAngle = -1;
             double targetDistance = -1;
+
             foreach (Ship ship in ShipRegistry.All)
             {
                 if (ship.ShipId == ShipId) continue; // Dont target own ship.
@@ -142,8 +147,8 @@ namespace MatchHistoryMod
             TargetPositionArr = hitData.Position;
             TargetDistance = Vector3.Magnitude(TargetPosition - GunPosition);
             TargetShipId = hitData.TargetShipId;
+            hitData.ShotIndex = ShotIndex;
             HitIndexes.Add(hitIndex);
-
         }
 
         public Vector3 PositionAt(long timestamp)
@@ -159,6 +164,11 @@ namespace MatchHistoryMod
             Vector3 position = GunPosition + forwards * MuzzleVelocity * deltaT;
 
             return position;
+        }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
         }
     }
 }
