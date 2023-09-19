@@ -15,9 +15,6 @@ namespace LobbyBalancer
     [HarmonyPatch]
     class LobbyBalancer
     {
-        static string ServerUrl = "http://localhost";
-
-
         public class BalanceRequestData
         {
             public List<int> playerIds;
@@ -36,8 +33,6 @@ namespace LobbyBalancer
             public List<string> playerNames;
             public List<int> playerElos;
         }
-
-        
 
         private static void RequestLobbyBalance(BalanceRequestData requestData)
         {
@@ -79,9 +74,6 @@ namespace LobbyBalancer
                 {
                     MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("API server unresponsive."));
                 }
-                else
-                {
-                }
             }
 
         }
@@ -96,10 +88,9 @@ namespace LobbyBalancer
                 {
                     msg += $"\n {teams[i].playerNames[p]}";
                 }
-                //msg += "\n";
             }
             Console.WriteLine(msg);
-            MuseWorldClient.Instance.ChatHandler.TrySendMessage(msg+ msg+ msg+msg + msg + msg + msg + msg + msg, "match");
+            MuseWorldClient.Instance.ChatHandler.TrySendMessage(msg, "match");
 
         }
 
@@ -123,7 +114,7 @@ namespace LobbyBalancer
                 teamCount = mlv.TeamCount,
                 teamSize = mlv.CrewCount / mlv.TeamCount,
                 randomness = randomness,
-                keepPilots = false,
+                keepPilots = keepPilots,
             };
 
             string serialized = JsonConvert.SerializeObject(req);
@@ -147,7 +138,6 @@ namespace LobbyBalancer
                 ChatMessage chatMsg = new ChatMessage
                 {
                     Type = ChatMessage.MessageType.Console,
-                    //UserName = "",
                     Message = 
                         "/balance [KeepPilots:optional] [randomness:optional]\n" +
                         "KeepPilots: Include to keep current pilots.\n" +
@@ -157,12 +147,16 @@ namespace LobbyBalancer
                 return;
             }
 
-            var req = LoadBalanceRequest(false, 100);
+            int randomness = 0;
+            bool keepPilots = false;
+            for (int i = 1; i < words.Length; ++i)
+            {
+                if (words[i] == "KeepPilots") keepPilots = true;
+                int.TryParse(words[i], out randomness);
+            }
+
+            var req = LoadBalanceRequest(keepPilots, randomness);
             RequestLobbyBalance(req);
-            //foreach (var word in words)
-            //{
-            //    Console.WriteLine($"<{word}>");
-            //}
         }
     }
 
