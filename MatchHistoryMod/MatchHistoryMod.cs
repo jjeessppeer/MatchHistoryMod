@@ -19,7 +19,7 @@ namespace MatchHistoryMod
     {
         public const string pluginGuid = "whereami.matchhistory.mod";
         public const string pluginName = "Match History Mod";
-        public const string pluginVersion = "0.1.3";
+        public const string pluginVersion = "0.1.4";
 
         public void Awake()
         {
