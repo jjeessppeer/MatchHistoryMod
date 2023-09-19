@@ -81,12 +81,14 @@ namespace LobbyBalancer
         private static void PublishBalancedTeams(List<TeamData> teams)
         {
             string msg = ".";
+            Random r = new Random();
             for (int i = 0; i < teams.Count; ++i)
             {
                 msg += $"\n__Team {i + 1}__ (mmr: {teams[i].realElo / teams[i].memberCount})";
-                for (int p = 0; p < teams[i].memberCount; ++p)
+                //for (int p = 0; p < teams[i].memberCount; ++p)
+                foreach (int p in Enumerable.Range(0, teams[i].memberCount).OrderBy(x => r.Next()))
                 {
-                    msg += $"\n {teams[i].playerNames[p]}";
+                msg += $"\n {teams[i].playerNames[p]}";
                 }
             }
             Console.WriteLine(msg);
