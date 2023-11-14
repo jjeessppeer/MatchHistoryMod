@@ -10,21 +10,137 @@ using Muse.Networking;
 using LitJson;
 using Newtonsoft.Json;
 using Muse.Goi2.Entity;
+using System.Reflection;
 
 namespace MatchHistoryMod
 {
 
+    public class ObjectListTransposer<T>
+    {
+        public Dictionary<string, List<object>> Values = new Dictionary<string, List<object>>();
+
+        public ObjectListTransposer()
+        {
+            FieldInfo[] fi = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
+            foreach (FieldInfo info in fi)
+            {
+                if (FieldShouldBeIgnored(info)) continue;
+                Values.Add(info.Name, new List<object>());
+            }
+        }
+
+        //public T GetInstance(int i)
+        //{
+        //}
+
+        public void Add(T newObj)
+        {
+            FieldInfo[] fi = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
+            foreach (FieldInfo info in fi)
+            {
+                if (FieldShouldBeIgnored(info)) continue;
+                Values[info.Name].Add(info.GetValue(newObj));
+            }
+        }
+
+        private static bool FieldShouldBeIgnored(FieldInfo info)
+        {
+            foreach (object attr in info.GetCustomAttributes(true))
+                if (attr.GetType() == typeof(Newtonsoft.Json.JsonIgnoreAttribute))
+                    return true;
+            return false;
+        }
+    }
+
+    public class ShotsSerializable
+    {
+        // Better datastructure for serialization.
+        public List<long> ShotTimestamp = new List<long>();
+        public List<int> Buckshots = new List<int>();
+        public List<int> ShooterUserId = new List<int>();
+        
+        public List<int> TeamIndex = new List<int>();
+        public List<int> ShipIndex = new List<int>();
+        public List<int> ShipId = new List<int>();
+
+        public List<int> GunSlot = new List<int>();
+        public List<int> GunItemId = new List<int>();
+        public List<int> AmmoItemId = new List<int>();
+
+        public List<int[]> GunPositionArr = new List<int[]>();
+        public List<float[]> GunDirectionArr = new List<float[]>();
+        public List<float[]> ShipVelocity = new List<float[]>();
+        public List<int> MuzzleVelocity = new List<int>();
+
+        public List<int> TargetShipId = new List<int>();
+        public List<int[]> TargetPositionArr = new List<int[]>();
+        public List<int> TargetDistance = new List<int>();
+
+        public List<bool> DidHit = new List<bool>();
+        public List<List<int>> HitIndexes = new List<List<int>>();
+
+        public void Add(ShotData shot)
+        {
+            ShotTimestamp.Add(shot.ShotTimestamp);
+            Buckshots.Add(shot.Buckshots);
+
+            TeamIndex.Add(shot.TeamIndex);
+            ShipIndex.Add(shot.ShipIndex);
+            ShipId.Add(shot.ShipId);
+            ShooterUserId.Add(shot.ShooterUserId);
+
+            GunSlot.Add(shot.GunSlot);
+            GunItemId.Add(shot.GunItemId);
+            AmmoItemId.Add(shot.AmmoItemId);
+
+            GunPositionArr.Add(shot.GunPositionArr);
+            GunDirectionArr.Add(shot.GunDirectionArr);
+            ShipVelocity.Add(shot.ShipVelocity);
+            MuzzleVelocity.Add(shot.MuzzleVelocity);
+
+            TargetShipId.Add(shot.TargetShipId);
+
+            TargetPositionArr.Add(shot.TargetPositionArr);
+            TargetDistance.Add(shot.TargetDistance);
+
+            DidHit.Add(shot.DidHit);
+            HitIndexes.Add(shot.HitIndexes);
+        }
+
+        //public ShotData Get(int i)
+        //{
+        //    return new ShotData()
+        //    {
+        //        ShotTimestamp = Timestamp[i],
+        //        Buckshots = Buckshots[i],
+        //        TeamIndex = TeamIndex[i],
+        //        ShipIndex = ShipIndex[i],
+        //        ShipId = ShipId[i],
+        //        ShooterUserId = ShooterUserId[i],
+        //        GunSlot = GunSlot[i],
+        //        GunItemId = GunItemId[i],
+        //        AmmoItemId = AmmoItemId[i],
+        //        GunPositionArr = GunPositionArr[i],
+        //        GunDirectionArr = GunDirectionArr[i],
+        //        ShipVelocity = ShipVelocity[i],
+        //        MuzzleVelocity = MuzzleVelocity[i],
+        //        TargetShipId = TargetShipId[i],
+        //    };
+        //}
+
+    }
+
     public class ShotData
     {
-        public int ShotIndex;
+        //public int ShotIndex;
         public long ShotTimestamp;
 
         public int Buckshots = 1;
 
-        public int ShooterUserId;
         public int TeamIndex;
-        public int ShipId;
         public int ShipIndex;
+        public int ShipId;
+        public int ShooterUserId;
 
         public int GunSlot;
         public int GunItemId;
@@ -32,29 +148,33 @@ namespace MatchHistoryMod
 
         [JsonIgnore]
         public Vector3 GunPosition;
-        public float[] GunPositionArr;
+        public int[] GunPositionArr;
         [JsonIgnore]
         public Vector3 GunDirection;
         public float[] GunDirectionArr;
         public float[] ShipVelocity;
-        public float MuzzleVelocity;
+        public int MuzzleVelocity;
 
         // Target position predicted on projectile shot, updated if hit.
         public int TargetShipId = -1;
         [JsonIgnore]
         public Vector3 TargetPosition;
-        public float[] TargetPositionArr;
-        public float TargetDistance;
+        public int[] TargetPositionArr;
+        public int TargetDistance;
 
         public bool DidHit = false;
         public List<int> HitIndexes = new List<int>();
 
+        public ShotData()
+        {
+
+        }
 
         public ShotData(Turret turret, int shotIndex)
         {
             // TODO: Use match time timestamp.
             ShotTimestamp = MatchDataRecorder.GetActiveGameTimestamp();
-            ShotIndex = shotIndex;
+            //ShotIndex = shotIndex;
             ShipId = turret.Ship.ShipId;
             ShipIndex = turret.Ship.CrewIndex;
             TeamIndex = turret.Ship.Side;
@@ -121,7 +241,7 @@ namespace MatchHistoryMod
             {
                 TargetShipId = targetShip.ShipId;
                 TargetPosition = targetShip.position;
-                TargetDistance = (float)targetDistance;
+                TargetDistance = (int)targetDistance;
                 //FileLog.Log($"Shot data: " +
                 //    $"\n\ttgt {GunPosition} ,  {targetShip.position} ,  {targetDistance}" +
                 //    $"\n\tywp: {turret.WorldYaw} {turret.WorldPitch}" +
@@ -130,14 +250,14 @@ namespace MatchHistoryMod
             }
 
             // Turret stats
-            MuzzleVelocity = turret.Data.muzzleSpeed;
+            MuzzleVelocity = (int)turret.Data.muzzleSpeed;
             GunItemId = turret.ItemId;
             AmmoItemId = turret.AmmoEquipmentID;
 
             // Cannot serialize regular Vector3, use float arrays instead.
-            GunPositionArr = new float[] { GunPosition.x, GunPosition.y, GunPosition.z };
+            GunPositionArr = new int[] { (int)GunPosition.x, (int)GunPosition.y, (int)GunPosition.z };
             GunDirectionArr = new float[] { GunDirection.x, GunDirection.y, GunDirection.z };
-            TargetPositionArr = new float[] { TargetPosition.x, TargetPosition.y, TargetPosition.z };
+            TargetPositionArr = new int[] { (int)TargetPosition.x, (int)TargetPosition.y, (int)TargetPosition.z };
         }
 
         public void AddHit(HitData hitData, int hitIndex)
@@ -145,9 +265,9 @@ namespace MatchHistoryMod
             DidHit = true;
             TargetPosition = hitData.PositionVec;
             TargetPositionArr = hitData.Position;
-            TargetDistance = Vector3.Magnitude(TargetPosition - GunPosition);
+            TargetDistance = (int)Vector3.Magnitude(TargetPosition - GunPosition);
             TargetShipId = hitData.TargetShipId;
-            hitData.ShotIndex = ShotIndex;
+            //hitData.ShotIndex = ShotIndex;
             HitIndexes.Add(hitIndex);
         }
 
@@ -165,6 +285,7 @@ namespace MatchHistoryMod
 
             return position;
         }
+
 
         public override string ToString()
         {
