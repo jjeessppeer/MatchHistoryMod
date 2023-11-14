@@ -21,7 +21,6 @@ namespace MatchHistoryMod
         public List<HitData> GameHits = new List<HitData>();
         public ObjectListTransposer<ShotData> GameShotsTransposed = new ObjectListTransposer<ShotData>();
 
-        public ShotsSerializable ShotLists = new ShotsSerializable();
         // Cool stuff todo:
         // Heatmap for: Ship positions, damage taken at, damage dealt from
         // Kills
@@ -70,18 +69,14 @@ namespace MatchHistoryMod
             FileLog.Log($"Shot {GameShots.Count}");
 
             GameShots.Add(shot);
-            ShotLists.Add(shot);
             GameShotsTransposed.Add(shot);
 
-            string s1 = SerializeAndCompress(GameShots);
+            //string s1 = SerializeAndCompress(GameShots);
             //string s11 = JsonConvert.SerializeObject(GameShots);
-            string s2 = SerializeAndCompress(ShotLists);
-            string s22 = JsonConvert.SerializeObject(ShotLists);
-            string s3 = SerializeAndCompress(GameShotsTransposed);
-            string s33 = JsonConvert.SerializeObject(GameShotsTransposed);
-            FileLog.Log($"Objects {s1.Length}");
-            FileLog.Log($"Lists {s2.Length}\n{s22}");
-            FileLog.Log($"Transposed {s3.Length} \n{s33}");
+            //string s3 = SerializeAndCompress(GameShotsTransposed);
+            //string s33 = JsonConvert.SerializeObject(GameShotsTransposed);
+            //FileLog.Log($"Objects {s1.Length}");
+            //FileLog.Log($"Transposed {s3.Length} \n{s33}");
 
         }
 
