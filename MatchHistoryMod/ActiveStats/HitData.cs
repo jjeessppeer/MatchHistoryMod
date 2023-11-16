@@ -29,11 +29,9 @@ namespace MatchHistoryMod
         public string TargetComponentType;
         public string TargetComponentSlot;
         public bool TargetComponentBroken;
-        public float[] TargetVelocity;
+        public Vector3 TargetVelocity;
 
-        [JsonIgnore]
-        public Vector3 PositionVec;
-        public int[] Position;
+        public Vector3 Position;
         public int Damage;
         public bool CoreHit;
 
@@ -76,8 +74,8 @@ namespace MatchHistoryMod
             }
             if (targetShip == null || targetComponent == null) throw new Exception("No target component found");
 
-            Vector3 positionVec = targetComponent.transform.TransformPoint(vec1);
-            Vector3 velocityVec = targetShip.WorldVelocity;
+            Position = RoundVector3(targetComponent.transform.TransformPoint(vec1), 0);
+            TargetVelocity = RoundVector3(targetShip.WorldVelocity, 1);
 
             HitIndex = hitIndex;
             HitTimestamp = hitTimestamp;
@@ -91,12 +89,17 @@ namespace MatchHistoryMod
             TargetComponentType = targetComponent.Type.ToString();
             TargetComponentSlot = targetComponent.SlotName;
             TargetComponentBroken = targetComponent.Health - damage <= 1;
-            TargetVelocity = new float[] { velocityVec.x, velocityVec.y, velocityVec.z };
-            PositionVec = positionVec;
-            Position = new int[] { (int)positionVec.x, (int)positionVec.y, (int)positionVec.z };
             Damage = damage;
             CoreHit = (hitType & 1) > 0;
             ShotIndex = -1;
+        }
+
+        private static Vector3 RoundVector3(Vector3 vec, int decimals = 3)
+        {
+            return new Vector3(
+                (float)Math.Round(vec.x, decimals),
+                (float)Math.Round(vec.y, decimals),
+                (float)Math.Round(vec.z, decimals));
         }
 
         //public static HitData ParseHitEvent(MuseEvent evt, Turret turret, int i, int hitIndex)

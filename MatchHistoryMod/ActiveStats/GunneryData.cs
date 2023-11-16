@@ -15,11 +15,15 @@ using System.IO;
 
 namespace MatchHistoryMod
 {
-    public class GameData
+    public class GunneryData
     {
+        [JsonIgnore]
         public List<ShotData> GameShots = new List<ShotData>();
+        [JsonIgnore]
         public List<HitData> GameHits = new List<HitData>();
+
         public ObjectListTransposer<ShotData> GameShotsTransposed = new ObjectListTransposer<ShotData>();
+        public ObjectListTransposer<HitData> GameHitsTransposed = new ObjectListTransposer<HitData>();
 
         // Cool stuff todo:
         // Heatmap for: Ship positions, damage taken at, damage dealt from
@@ -27,10 +31,9 @@ namespace MatchHistoryMod
         // Spawns
         // Repairs
 
-
         public string SerializeAndCompress(object obj)
         {
-            string json = JsonConvert.SerializeObject(obj);
+            string json = JsonConvert.SerializeObject(obj, new VectorJsonConverter());
             byte[] data = Encoding.ASCII.GetBytes(json);
             MemoryStream output = new MemoryStream();
             using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
@@ -42,7 +45,7 @@ namespace MatchHistoryMod
             return outStr;
         }
 
-        public GameData()
+        public GunneryData()
         {
             //GameStartTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
         }
@@ -74,9 +77,9 @@ namespace MatchHistoryMod
             //string s1 = SerializeAndCompress(GameShots);
             //string s11 = JsonConvert.SerializeObject(GameShots);
             //string s3 = SerializeAndCompress(GameShotsTransposed);
-            //string s33 = JsonConvert.SerializeObject(GameShotsTransposed);
+            string s33 = JsonConvert.SerializeObject(GameShotsTransposed, new VectorJsonConverter());
             //FileLog.Log($"Objects {s1.Length}");
-            //FileLog.Log($"Transposed {s3.Length} \n{s33}");
+            FileLog.Log($"Transposed {s33.Length} \n{s33}");
 
         }
 
@@ -152,7 +155,7 @@ namespace MatchHistoryMod
         public float ShotHitDifference(ShotData shot, HitData hit)
         {
             Vector3 predictedPosition = shot.PositionAt(hit.HitTimestamp);
-            float posDiff = (predictedPosition - hit.PositionVec).magnitude;
+            float posDiff = (predictedPosition - hit.Position).magnitude;
             return posDiff;
         }
 

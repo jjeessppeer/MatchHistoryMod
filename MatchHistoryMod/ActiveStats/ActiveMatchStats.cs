@@ -16,12 +16,12 @@ namespace MatchHistoryMod
     [HarmonyPatch]
     static class MatchDataRecorder
     {
-        public static GameData ActiveGameData;
+        public static GunneryData ActiveGunneryData;
         static long GameStartTimestamp;
 
         public static string GetJSONDump()
         {
-            return JsonConvert.SerializeObject(ActiveGameData);
+            return JsonConvert.SerializeObject(ActiveGunneryData);
         }
 
         struct TableKey
@@ -38,7 +38,7 @@ namespace MatchHistoryMod
         {
 
             Dictionary<TableKey, TableEntry> table = new Dictionary<TableKey, TableEntry>();
-            foreach (ShotData shot in ActiveGameData.GameShots)
+            foreach (ShotData shot in ActiveGunneryData.GameShots)
             {
                 TableKey key = new TableKey() { 
                     PlayerId = shot.ShooterUserId,
@@ -66,7 +66,7 @@ namespace MatchHistoryMod
         public static void Reset()
         {
 
-            ActiveGameData = new GameData();
+            ActiveGunneryData = new GunneryData();
             var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             GameStartTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
         }
@@ -192,7 +192,7 @@ namespace MatchHistoryMod
             int shotsFired = (int) (oldAmmunition - ammounition);
             for (int i = 0; i < shotsFired; i++)
             {
-                ActiveGameData.TurretFired(__instance);
+                ActiveGunneryData.TurretFired(__instance);
             }
             
         }
@@ -203,7 +203,7 @@ namespace MatchHistoryMod
         private static void ProjectileHit(int senderId, MuseEvent evt, Turret __instance)
         {
             if (evt.Action != 1) return;
-            ActiveGameData.ProjectileHit(evt, __instance);
+            ActiveGunneryData.ProjectileHit(evt, __instance);
         }
 
 

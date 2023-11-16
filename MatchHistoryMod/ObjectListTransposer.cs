@@ -9,6 +9,8 @@ namespace MatchHistoryMod
 {
     public class ObjectListTransposer<T>
     {
+        // Transposes a list of objects for better serialization.
+
         public Dictionary<string, List<object>> Values = new Dictionary<string, List<object>>();
 
         public ObjectListTransposer()
@@ -21,10 +23,6 @@ namespace MatchHistoryMod
             }
         }
 
-        //public T GetInstance(int i)
-        //{
-        //}
-
         public void Add(T newObj)
         {
             FieldInfo[] fi = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -34,6 +32,20 @@ namespace MatchHistoryMod
                 Values[info.Name].Add(info.GetValue(newObj));
             }
         }
+
+        //public T GetInstance(int i)
+        //{
+        //}
+
+        //public void Set(T obj, int i)
+        //{
+        //    FieldInfo[] fi = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
+        //    foreach (FieldInfo info in fi)
+        //    {
+        //        if (FieldShouldBeIgnored(info)) continue;
+        //        Values[info.Name][i] = info.GetValue(obj);
+        //    }
+        //}
 
         private static bool FieldShouldBeIgnored(FieldInfo info)
         {

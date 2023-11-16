@@ -13,6 +13,20 @@ using Muse.Goi2.Entity;
 
 namespace MatchHistoryMod
 {
+    public class VectorJsonConverter : JsonConverter<Vector3>
+    {
+        public override void WriteJson(Newtonsoft.Json.JsonWriter writer, Vector3 value, Newtonsoft.Json.JsonSerializer serializer)
+        {
+            //writer.WriteValue(value.ToString());
+            writer.WriteValue($"[{value.x},{value.y},{value.z}]");
+        }
+        public override Vector3 ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType, Vector3 existingValue, bool hasExistingValue, Newtonsoft.Json.JsonSerializer serializer)
+        {
+
+            throw new NotImplementedException();
+        }
+    }
+
     public class ShotData
     {
         //public int ShotIndex;
@@ -29,20 +43,14 @@ namespace MatchHistoryMod
         public int GunItemId;
         public int AmmoItemId;
 
-        [JsonIgnore]
         public Vector3 GunPosition;
-        public int[] GunPositionArr;
-        [JsonIgnore]
         public Vector3 GunDirection;
-        public float[] GunDirectionArr;
-        public float[] ShipVelocity;
+        public Vector3 ShipVelocity;
         public int MuzzleVelocity;
 
         // Target position predicted on projectile shot, updated if hit.
         public int TargetShipId = -1;
-        [JsonIgnore]
         public Vector3 TargetPosition;
-        public int[] TargetPositionArr;
         public int TargetDistance;
 
         public bool DidHit = false;
@@ -53,13 +61,20 @@ namespace MatchHistoryMod
 
         }
 
+        private static Vector3 RoundVector3(Vector3 vec, int decimals = 3)
+        {
+            return new Vector3(
+                (float)Math.Round(vec.x, decimals),
+                (float)Math.Round(vec.y, decimals),
+                (float)Math.Round(vec.z, decimals));
+        }
+
         public ShotData(Turret turret, int shotIndex)
         {
             ShotTimestamp = MatchDataRecorder.GetActiveGameTimestamp();
             ShipId = turret.Ship.ShipId;
             ShipIndex = turret.Ship.CrewIndex;
             TeamIndex = turret.Ship.Side;
-            Vector3 velocityVec = turret.Ship.WorldVelocity;
 
             // Get the userId.
             NetworkedPlayer user = turret.UsingPlayer;
@@ -89,8 +104,9 @@ namespace MatchHistoryMod
                 (float)(xzLen * Math.Cos(turret.WorldYaw * 0.0174533))
             );
 
-            GunPosition = turret.position;
-            GunDirection = shotDirection;
+            GunPosition = RoundVector3(turret.position, 0);
+            GunDirection = RoundVector3(shotDirection, 2);
+            ShipVelocity = RoundVector3(turret.Ship.WorldVelocity, 1);
 
             // Find predicted target ship.
             Ship targetShip = null;
@@ -120,7 +136,7 @@ namespace MatchHistoryMod
             if (targetShip != null)
             {
                 TargetShipId = targetShip.ShipId;
-                TargetPosition = targetShip.position;
+                TargetPosition = RoundVector3(targetShip.position, 0);
                 TargetDistance = (int)targetDistance;
                 //FileLog.Log($"Shot data: " +
                 //    $"\n\ttgt {GunPosition} ,  {targetShip.position} ,  {targetDistance}" +
@@ -133,25 +149,12 @@ namespace MatchHistoryMod
             MuzzleVelocity = (int)turret.Data.muzzleSpeed;
             GunItemId = turret.ItemId;
             AmmoItemId = turret.AmmoEquipmentID;
-
-            // Cannot serialize regular Vector3, use float arrays instead.
-            GunPositionArr = new int[] { (int)GunPosition.x, (int)GunPosition.y, (int)GunPosition.z };
-            GunDirectionArr = new float[] { 
-                (float)Math.Round(GunDirection.x, 3), 
-                (float)Math.Round(GunDirection.y, 3), 
-                (float)Math.Round(GunDirection.z, 3) };
-            ShipVelocity = new float[] {
-                (float)Math.Round(velocityVec.x, 3),
-                (float)Math.Round(velocityVec.y, 3),
-                (float)Math.Round(velocityVec.z, 3) };
-            TargetPositionArr = new int[] { (int)TargetPosition.x, (int)TargetPosition.y, (int)TargetPosition.z };
         }
 
         public void AddHit(HitData hitData, int hitIndex)
         {
             DidHit = true;
-            TargetPosition = hitData.PositionVec;
-            TargetPositionArr = hitData.Position;
+            TargetPosition = hitData.Position;
             TargetDistance = (int)Vector3.Magnitude(TargetPosition - GunPosition);
             TargetShipId = hitData.TargetShipId;
             //hitData.ShotIndex = ShotIndex;

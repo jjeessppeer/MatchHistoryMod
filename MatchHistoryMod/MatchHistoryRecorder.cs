@@ -26,64 +26,41 @@ namespace MatchHistoryMod
     public class UploadPacket
     {
         public string ModVersion = MatchHistoryMod.pluginVersion;
-        public GameData GameData;
+        public string MatchId;
+        public string CompressedGunneryData;
         public LobbyData LobbyData;
-        public byte[] GetEncoded()
+
+        public UploadPacket(LobbyData lobbyData, GunneryData gunneryData)
+        {
+            ModVersion = MatchHistoryMod.pluginVersion;
+            MatchId = lobbyData.MatchId;
+            CompressedGunneryData = SerializeAndCompress(gunneryData);
+        }
+
+        public static string SerializeAndCompress(object obj)
+        {
+            string json = JsonConvert.SerializeObject(obj, new VectorJsonConverter());
+            //FileLog.Log($"Uncompressed size: {json.Length}");
+            byte[] data = Encoding.ASCII.GetBytes(json);
+            MemoryStream output = new MemoryStream();
+            using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
+            {
+                dstream.Write(data, 0, data.Length);
+            }
+            byte[] outArr = output.ToArray();
+            string outStr = Convert.ToBase64String(outArr);
+            //FileLog.Log($"Compressed size: {outStr.Length}");
+            return outStr;
+        }
+
+        public byte[] GetByteEncoded()
         {
             string json = JsonConvert.SerializeObject(this);
             byte[] bytes = Encoding.ASCII.GetBytes(json);
             return bytes;
         }
-        public byte[] GetCompressed()
-        {
-            var data = GetEncoded();
-            FileLog.Log($"Uncompressed size: {data.Length}");
-            MemoryStream output = new MemoryStream();
-            using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
-            {
-                dstream.Write(data, 0, data.Length);
-            }
-            byte[] outArr = output.ToArray();
-            string outStr = Convert.ToBase64String(outArr);
-            byte[] encoded = Encoding.ASCII.GetBytes(outStr);
+    }
 
-            FileLog.Log($"Compressed size: {encoded.Length}");
-            return encoded;
-        }
-    }
-    public class CompressedPacket
-    {
-        public string ModVersion;
-        public string MatchId;
-        public LobbyData LobbyData;
-        public string GameData;
-        public CompressedPacket(UploadPacket original)
-        {
-            ModVersion = original.ModVersion;
-            MatchId = original.LobbyData.MatchId;
-            LobbyData = original.LobbyData;
-            GameData = SerializeAndCompress(original.GameData);
-        }
-        public byte[] GetBytes()
-        {
-            string json = JsonConvert.SerializeObject(this);
-            byte[] data = Encoding.ASCII.GetBytes(json);
-            return data;
-        }
-        public string SerializeAndCompress(object obj)
-        {
-            string json = JsonConvert.SerializeObject(obj);
-            byte[] data = Encoding.ASCII.GetBytes(json);
-            MemoryStream output = new MemoryStream();
-            using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
-            {
-                dstream.Write(data, 0, data.Length);
-            }
-            byte[] outArr = output.ToArray();
-            string outStr = Convert.ToBase64String(outArr);
-            return outStr;
-        }
-    }
 
     [HarmonyPatch]
     public static class MatchHistoryRecorder
@@ -95,12 +72,10 @@ namespace MatchHistoryMod
             //const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
             const string _UploadURL = "http://localhost/submit_match_history";
             var request = (HttpWebRequest)WebRequest.Create(_UploadURL);
-            CompressedPacket compressedPacket = new CompressedPacket(packet);
-            var data = compressedPacket.GetBytes();
+            var data = packet.GetByteEncoded();
             request.Method = "POST";
             request.Timeout = 8000;
             request.ContentType = "application/json";
-            
             request.ContentLength = data.Length;
 
             try
@@ -251,23 +226,16 @@ namespace MatchHistoryMod
                 MuseLog.InfoFormat("no crewStats data", new object[0]);
             }
 
-            LobbyData d = new LobbyData(MatchLobbyView.Instance, Mission.Instance)
+            LobbyData lobbyData = new LobbyData(MatchLobbyView.Instance, Mission.Instance)
             {
                 MatchTime = dictionary5["Time Completed"]
             };
             //FileLog.Log(JsonConvert.SerializeObject(d));
 
-            Thread uploadThread = new Thread(() => UploadMatchData(new UploadPacket()
-            {
-                LobbyData = d,
-                GameData = MatchDataRecorder.ActiveGameData
-            }));
+            Thread uploadThread = new Thread(() => 
+                UploadMatchData(new UploadPacket(lobbyData, MatchDataRecorder.ActiveGunneryData))
+            );
             uploadThread.Start();
-            //UploadMatchData(new UploadPacket()
-            //{
-            //    LobbyData = d,
-            //    GameData = MatchDataRecorder.ActiveGameData
-            //});
         }
     }
 
