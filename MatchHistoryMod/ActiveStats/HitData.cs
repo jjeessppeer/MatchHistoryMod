@@ -43,7 +43,6 @@ namespace MatchHistoryMod
             int damage = (int)evt.GetInteger(i * 10 + 2);
             int hitType = (int)evt.GetInteger(i * 10 + 4);
             string binary = Convert.ToString(hitType, 2);
-            FileLog.Log($"HitType: {binary}");
             bool coreHit = (hitType & 1) > 0;
             //bool directHit = i == 0;
             //bool hitWeakness = (hitType & 2) > 0; // Pve shit

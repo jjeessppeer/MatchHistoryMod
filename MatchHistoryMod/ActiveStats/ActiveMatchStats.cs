@@ -17,11 +17,12 @@ namespace MatchHistoryMod
     static class MatchDataRecorder
     {
         public static GunneryData ActiveGunneryData;
+        public static List<ShipPositionData> ShipPositions = new List<ShipPositionData>();
         static long GameStartTimestamp;
 
         public static string GetJSONDump()
         {
-            return JsonConvert.SerializeObject(ActiveGunneryData);
+            return JsonConvert.SerializeObject(ActiveGunneryData, new VectorJsonConverter());
         }
 
         struct TableKey
@@ -67,6 +68,7 @@ namespace MatchHistoryMod
         {
 
             ActiveGunneryData = new GunneryData();
+            ShipPositions = new List<ShipPositionData>();
             var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             GameStartTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
         }
@@ -156,6 +158,19 @@ namespace MatchHistoryMod
         //{
         //    FileLog.Log($"Ship killed");
         //}
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
+        private static void ShipUpdate(Ship __instance)
+        {
+            ShipPositionData.TakeSnapshot(__instance, ShipPositions);
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Ship), "OnRemoteDestroy")]
+        private static void ShipDestroy(Ship __instance)
+        {
+            ShipPositionData.TakeSnapshot(__instance, ShipPositions);
+        }
 
         [HarmonyPostfix]
         [HarmonyPatch(typeof(Turret), "OnRemoteUpdate")]
@@ -165,34 +180,31 @@ namespace MatchHistoryMod
             int? ammounition = Traverse.Create(__instance).Field("ammunition").GetValue() as int?;
             int? clipSize = Traverse.Create(__instance).Field("ammunitionClipSize").GetValue() as int?;
             bool? reload= Traverse.Create(__instance).Field("reload").GetValue() as bool?;
-
-
-            if (oldAmmunition == ammounition) return; // No ammo change
             if (oldAmmunition == 0)
             {
-                // Reloaded
                 oldAmmunition = clipSize;
             }
-            if (oldAmmunition <= ammounition) return; // Continue only if ammo decreased meanin shot was fired.
-
-
-            //if (oldAmmunition != 0 && reload == true)
-            //{
-            //    FileLog.Log("EARLY RELOAD");
-            //}
-
-            if (ammounition == 0 && oldAmmunition >= 3)
+            if (oldAmmunition <= ammounition) return; // Continue only if ammo decreased, meaning shot was fired.
+            if (ammounition == 0 && oldAmmunition >= 2 && reload == true)
             {
-                // Reloaded early.
+                // Gun was reloaded early.
                 // TODO: better conditions for low ammo guns
-                // Fails if one reloads on 1 or 2 bullets left
+                // Will currently count reload at 1 ammo as a shot.
                 return;
             }
 
             int shotsFired = (int) (oldAmmunition - ammounition);
+            //FileLog.Log($"Fired {shotsFired} shots. R:{reload} O:{oldAmmunition} N:{ammounition}");
             for (int i = 0; i < shotsFired; i++)
             {
-                ActiveGunneryData.TurretFired(__instance);
+                try
+                {
+                    ActiveGunneryData.TurretFired(__instance);
+                }
+                catch
+                {
+
+                }
             }
             
         }
@@ -203,7 +215,12 @@ namespace MatchHistoryMod
         private static void ProjectileHit(int senderId, MuseEvent evt, Turret __instance)
         {
             if (evt.Action != 1) return;
-            ActiveGunneryData.ProjectileHit(evt, __instance);
+            try
+            {
+                ActiveGunneryData.ProjectileHit(evt, __instance);
+            }
+            catch
+            {}
         }
 
 

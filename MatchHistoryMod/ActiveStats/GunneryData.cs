@@ -57,19 +57,19 @@ namespace MatchHistoryMod
 
         public void TurretFired(Turret turret)
         {
-            //if (turret.ItemId == GATLING_ITEM_ID ||
-            //    turret.ItemId == FLAMER_ITEM_ID ||
-            //    turret.ItemId == LASER_ITEM_ID || 
-            //    turret.ItemId == MINE_ITEM_ID)
-            //{
-            //    // TODO: Hit detection broken with rapid fire guns. Multiple hits are merged into one event.
-            //    // Split hit event into multiple.
-            //    // Check damage done, if higher than single shot vs component: split into x.
-            //    // TODO: Mines need additional logic to work.
-            //    return;
-            //}
+            if (
+                turret.ItemId == GATLING_ITEM_ID ||
+                turret.ItemId == FLAMER_ITEM_ID ||
+                turret.ItemId == LASER_ITEM_ID ||
+                turret.ItemId == MINE_ITEM_ID)
+            {
+                // TODO: Hit detection broken with rapid fire guns. Multiple hits are merged into one event.
+                // Split hit event into multiple.
+                // Check damage done, if higher than single shot vs component: split into x.
+                // TODO: Mines need additional logic to work.
+                return;
+            }
             ShotData shot = new ShotData(turret, GameShots.Count);
-            FileLog.Log($"Shot {GameShots.Count}");
 
             GameShots.Add(shot);
             GameShotsTransposed.Add(shot);
@@ -77,9 +77,9 @@ namespace MatchHistoryMod
             //string s1 = SerializeAndCompress(GameShots);
             //string s11 = JsonConvert.SerializeObject(GameShots);
             //string s3 = SerializeAndCompress(GameShotsTransposed);
-            string s33 = JsonConvert.SerializeObject(GameShotsTransposed, new VectorJsonConverter());
+            //string s33 = JsonConvert.SerializeObject(GameShotsTransposed, new VectorJsonConverter());
             //FileLog.Log($"Objects {s1.Length}");
-            FileLog.Log($"Transposed {s33.Length} \n{s33}");
+            //FileLog.Log($"Transposed {s33.Length} \n{s33}");
 
         }
 
@@ -105,20 +105,17 @@ namespace MatchHistoryMod
             {
                 HitData hitData = new HitData(evt, turret, i, GameHits.Count);
                 GameHits.Add(hitData);
-                FileLog.Log($"Hit {hitData.HitIndex}");
                 int shotIndex = FindMatchingShot(hitData);
                 if (shotIndex != -1)
                 {
                     GameShots[shotIndex].AddHit(hitData, GameHits.Count - 1);
                     hitData.ShotIndex = shotIndex;
-                    FileLog.Log($"Matched with {shotIndex}");
                 }
                 else
                 {
-                    FileLog.Log("NO MATCHING SHOT?");
                 }
+                GameHitsTransposed.Add(hitData);
             }
-            //FileLog.Log(MatchDataRecorder.GetJSONDump());
 
             
         }
@@ -167,6 +164,7 @@ namespace MatchHistoryMod
             for (int i = GameShots.Count - 1; i >= 0; --i)
             {
                 // TODO: break condition when shot timestamp is some minimum value to.
+                // TODO: maximum rating value to classify as matching shot
                 float rating = RateShotHitCorrelation(GameShots[i], hit);
                 if (rating == -1) continue;
                 if (rating < bestMatchRating)

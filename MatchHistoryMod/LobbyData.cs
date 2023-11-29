@@ -22,7 +22,7 @@ namespace MatchHistoryMod
         public string ModVersion;
         public string MatchId;
         public bool Passworded;
-        public bool Moderated;
+        //public bool Moderated;
 
         public int MapId;
         public string MapName;
@@ -43,7 +43,7 @@ namespace MatchHistoryMod
             ModVersion = MatchHistoryMod.pluginVersion;
             MatchId = mlv.MatchId;
             Passworded = mlv.HasPassword;
-            Moderated = mlv.Moderated;
+            //Moderated = mlv.Moderated;
 
             MapId = mlv.Map.Id;
             MapName = mlv.Map.NameText.En;

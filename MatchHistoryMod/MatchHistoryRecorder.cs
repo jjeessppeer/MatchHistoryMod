@@ -28,19 +28,21 @@ namespace MatchHistoryMod
         public string ModVersion = MatchHistoryMod.pluginVersion;
         public string MatchId;
         public string CompressedGunneryData;
+        public string CompressedPositionData;
         public LobbyData LobbyData;
 
-        public UploadPacket(LobbyData lobbyData, GunneryData gunneryData)
+        public UploadPacket(LobbyData lobbyData, GunneryData gunneryData, List<ShipPositionData> positionData)
         {
             ModVersion = MatchHistoryMod.pluginVersion;
+            LobbyData = lobbyData;
             MatchId = lobbyData.MatchId;
             CompressedGunneryData = SerializeAndCompress(gunneryData);
+            CompressedPositionData = SerializeAndCompress(positionData);
         }
 
         public static string SerializeAndCompress(object obj)
         {
             string json = JsonConvert.SerializeObject(obj, new VectorJsonConverter());
-            //FileLog.Log($"Uncompressed size: {json.Length}");
             byte[] data = Encoding.ASCII.GetBytes(json);
             MemoryStream output = new MemoryStream();
             using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
@@ -49,13 +51,12 @@ namespace MatchHistoryMod
             }
             byte[] outArr = output.ToArray();
             string outStr = Convert.ToBase64String(outArr);
-            //FileLog.Log($"Compressed size: {outStr.Length}");
             return outStr;
         }
 
         public byte[] GetByteEncoded()
         {
-            string json = JsonConvert.SerializeObject(this);
+            string json = JsonConvert.SerializeObject(this, new VectorJsonConverter());
             byte[] bytes = Encoding.ASCII.GetBytes(json);
             return bytes;
         }
@@ -68,7 +69,6 @@ namespace MatchHistoryMod
         public static void UploadMatchData(UploadPacket packet)
         {
             MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
-            FileLog.Log($"Starting upload...");
             //const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
             const string _UploadURL = "http://localhost/submit_match_history";
             var request = (HttpWebRequest)WebRequest.Create(_UploadURL);
@@ -106,7 +106,6 @@ namespace MatchHistoryMod
                 {
                 }
             }
-            //FileLog.Log($"Upload finished.\n{recordJSON}");
         }
 
 
@@ -114,7 +113,6 @@ namespace MatchHistoryMod
         [HarmonyPatch(typeof(Mission), "Start")]
         private static void MissionStarted()
         {
-            FileLog.Log($"Mission started");
             MatchDataRecorder.Reset();
         }
 
@@ -123,9 +121,6 @@ namespace MatchHistoryMod
         [HarmonyPatch(typeof(UIManager.UIMatchCompleteState), "Enter")]
         private static void MatchComplteStateEnter()
         {
-            //LobbyData d = new LobbyData(MatchLobbyView.Instance, Mission.Instance);
-            //UploadMatchData(d);
-            FileLog.Log("Match ended.");
             // Use to get time of match and some other stats
             MatchActions.GetMatchStats(new Muse.Networking.ExtensionResponseDelegate(GetMatchStats));
 
@@ -232,10 +227,11 @@ namespace MatchHistoryMod
             };
             //FileLog.Log(JsonConvert.SerializeObject(d));
 
-            Thread uploadThread = new Thread(() => 
-                UploadMatchData(new UploadPacket(lobbyData, MatchDataRecorder.ActiveGunneryData))
+            Thread uploadThread = new Thread(() =>
+                UploadMatchData(new UploadPacket(lobbyData, MatchDataRecorder.ActiveGunneryData, MatchDataRecorder.ShipPositions))
             );
             uploadThread.Start();
+
         }
     }
 

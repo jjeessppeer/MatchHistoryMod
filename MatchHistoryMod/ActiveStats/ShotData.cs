@@ -46,6 +46,7 @@ namespace MatchHistoryMod
         public Vector3 GunPosition;
         public Vector3 GunDirection;
         public Vector3 ShipVelocity;
+        public float ShipAngularVelocity;
         public int MuzzleVelocity;
 
         // Target position predicted on projectile shot, updated if hit.
@@ -107,6 +108,7 @@ namespace MatchHistoryMod
             GunPosition = RoundVector3(turret.position, 0);
             GunDirection = RoundVector3(shotDirection, 2);
             ShipVelocity = RoundVector3(turret.Ship.WorldVelocity, 1);
+            ShipAngularVelocity = (float)Math.Round(turret.Ship.AngularVelocity, 1);
 
             // Find predicted target ship.
             Ship targetShip = null;
