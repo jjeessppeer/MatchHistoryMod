@@ -123,9 +123,8 @@ namespace MatchHistoryMod
         {
             // Use to get time of match and some other stats
             MatchActions.GetMatchStats(new Muse.Networking.ExtensionResponseDelegate(GetMatchStats));
-
-            File.WriteAllText("FullMatchData.json", MatchDataRecorder.GetJSONDump());
-            File.WriteAllText("AccuracyTable.txt", MatchDataRecorder.GetTableDump());
+            //File.WriteAllText("FullMatchData.json", MatchDataRecorder.GetJSONDump());
+            //File.WriteAllText("AccuracyTable.txt", MatchDataRecorder.GetTableDump());
         }
 
 
