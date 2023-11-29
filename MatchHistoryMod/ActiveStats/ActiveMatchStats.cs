@@ -176,6 +176,7 @@ namespace MatchHistoryMod
         [HarmonyPatch(typeof(Turret), "OnRemoteUpdate")]
         private static void TurretUpdate(Turret __instance)
         {
+            return;
             int? oldAmmunition = Traverse.Create(__instance).Field("oldAmmunition").GetValue() as int?;
             int? ammounition = Traverse.Create(__instance).Field("ammunition").GetValue() as int?;
             int? clipSize = Traverse.Create(__instance).Field("ammunitionClipSize").GetValue() as int?;
@@ -214,6 +215,7 @@ namespace MatchHistoryMod
         [HarmonyPatch(typeof(Turret), "OnCustomEvent")]
         private static void ProjectileHit(int senderId, MuseEvent evt, Turret __instance)
         {
+            return;
             if (evt.Action != 1) return;
             try
             {
