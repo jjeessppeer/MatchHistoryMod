@@ -69,8 +69,8 @@ namespace MatchHistoryMod
         public static void UploadMatchData(UploadPacket packet)
         {
             MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
-            //const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
-            const string _UploadURL = "http://localhost/submit_match_history";
+            const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
+            //const string _UploadURL = "http://localhost/submit_match_history";
             var request = (HttpWebRequest)WebRequest.Create(_UploadURL);
             var data = packet.GetByteEncoded();
             request.Method = "POST";
