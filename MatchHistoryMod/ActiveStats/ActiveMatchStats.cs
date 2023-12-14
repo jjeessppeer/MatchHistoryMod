@@ -127,103 +127,71 @@ namespace MatchHistoryMod
         }
 
         //[HarmonyPostfix]
-        //[HarmonyPatch(typeof(UIAnnouncementDisplay), "HandleAnnouncement")]
-        //private static void Announcment(Muse.Goi2.Entity.Announcement newAnnouncement, UIAnnouncementDisplay __instance)
+        //[HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
+        //private static void ShipUpdate(Ship __instance)
         //{
-        //    //Mission mission = Mission.Instance;
-        //    //MatchLobbyView mlv = MatchLobbyView.Instance;
-        //    FileLog.Log($"Announcment HandleAnnouncement");
-        //    FileLog.Log($"{GetSubjectText(newAnnouncement)} | {GetVerbText(newAnnouncement)} | {GetObjectText(newAnnouncement)}");
-        //}
-
-
-        //[HarmonyPostfix]
-        //[HarmonyPatch(typeof(Ship), "Awake")]
-        //private static void ShipInitialized0(Ship __instance)
-        //{
-        //    FileLog.Log($"Ship Awake {__instance.ShipId}");
+        //    ShipPositionData.TakeSnapshot(__instance, ShipPositions);
         //}
 
         //[HarmonyPostfix]
-        //[HarmonyPatch(typeof(Ship), "Start")]
-        //private static void ShipInitialized(Ship __instance)
+        //[HarmonyPatch(typeof(Ship), "OnRemoteDestroy")]
+        //private static void ShipDestroy(Ship __instance)
         //{
-        //    FileLog.Log($"Ship Start {__instance.ShipId}");
+        //    ShipPositionData.TakeSnapshot(__instance, ShipPositions);
         //}
-
 
         //[HarmonyPostfix]
-        //[HarmonyPatch(typeof(Ship), "OnDeath")]
-        //private static void ShipKilled(Ship __instance)
+        //[HarmonyPatch(typeof(Turret), "OnRemoteUpdate")]
+        //private static void TurretUpdate(Turret __instance)
         //{
-        //    FileLog.Log($"Ship killed");
-        //}
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
-        private static void ShipUpdate(Ship __instance)
-        {
-            ShipPositionData.TakeSnapshot(__instance, ShipPositions);
-        }
+        //    return;
+        //    int? oldAmmunition = Traverse.Create(__instance).Field("oldAmmunition").GetValue() as int?;
+        //    int? ammounition = Traverse.Create(__instance).Field("ammunition").GetValue() as int?;
+        //    int? clipSize = Traverse.Create(__instance).Field("ammunitionClipSize").GetValue() as int?;
+        //    bool? reload= Traverse.Create(__instance).Field("reload").GetValue() as bool?;
+        //    if (oldAmmunition == 0)
+        //    {
+        //        oldAmmunition = clipSize;
+        //    }
+        //    if (oldAmmunition <= ammounition) return; // Continue only if ammo decreased, meaning shot was fired.
+        //    if (ammounition == 0 && oldAmmunition >= 2 && reload == true)
+        //    {
+        //        // Gun was reloaded early.
+        //        // TODO: better conditions for low ammo guns
+        //        // Will currently count reload at 1 ammo as a shot.
+        //        return;
+        //    }
 
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(Ship), "OnRemoteDestroy")]
-        private static void ShipDestroy(Ship __instance)
-        {
-            ShipPositionData.TakeSnapshot(__instance, ShipPositions);
-        }
+        //    int shotsFired = (int) (oldAmmunition - ammounition);
+        //    //FileLog.Log($"Fired {shotsFired} shots. R:{reload} O:{oldAmmunition} N:{ammounition}");
+        //    for (int i = 0; i < shotsFired; i++)
+        //    {
+        //        try
+        //        {
+        //            ActiveGunneryData.TurretFired(__instance);
+        //        }
+        //        catch
+        //        {
 
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(Turret), "OnRemoteUpdate")]
-        private static void TurretUpdate(Turret __instance)
-        {
-            return;
-            int? oldAmmunition = Traverse.Create(__instance).Field("oldAmmunition").GetValue() as int?;
-            int? ammounition = Traverse.Create(__instance).Field("ammunition").GetValue() as int?;
-            int? clipSize = Traverse.Create(__instance).Field("ammunitionClipSize").GetValue() as int?;
-            bool? reload= Traverse.Create(__instance).Field("reload").GetValue() as bool?;
-            if (oldAmmunition == 0)
-            {
-                oldAmmunition = clipSize;
-            }
-            if (oldAmmunition <= ammounition) return; // Continue only if ammo decreased, meaning shot was fired.
-            if (ammounition == 0 && oldAmmunition >= 2 && reload == true)
-            {
-                // Gun was reloaded early.
-                // TODO: better conditions for low ammo guns
-                // Will currently count reload at 1 ammo as a shot.
-                return;
-            }
-
-            int shotsFired = (int) (oldAmmunition - ammounition);
-            //FileLog.Log($"Fired {shotsFired} shots. R:{reload} O:{oldAmmunition} N:{ammounition}");
-            for (int i = 0; i < shotsFired; i++)
-            {
-                try
-                {
-                    ActiveGunneryData.TurretFired(__instance);
-                }
-                catch
-                {
-
-                }
-            }
+        //        }
+        //    }
             
-        }
+        //}
 
-        // Called on projectile hit.
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(Turret), "OnCustomEvent")]
-        private static void ProjectileHit(int senderId, MuseEvent evt, Turret __instance)
-        {
-            return;
-            if (evt.Action != 1) return;
-            try
-            {
-                ActiveGunneryData.ProjectileHit(evt, __instance);
-            }
-            catch
-            {}
-        }
+        //// Called on projectile hit.
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(Turret), "OnCustomEvent")]
+        //private static void ProjectileHit(int senderId, MuseEvent evt, Turret __instance)
+        //{
+        //    return;
+        //    if (evt.Action != 1) return;
+        //    try
+        //    {
+        //        ActiveGunneryData.ProjectileHit(evt, __instance);
+        //    }
+        //    catch
+        //    {}
+        //}
 
 
     }

@@ -25,6 +25,7 @@ namespace MatchHistoryMod
         {
             var harmony = new Harmony(pluginGuid);
             harmony.PatchAll();
+            FileLog.Log("MOD PATCHED");
         }
     }
     

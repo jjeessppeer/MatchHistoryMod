@@ -23,97 +23,19 @@ using System.Threading;
 
 namespace MatchHistoryMod
 {
-    public class UploadPacket
-    {
-        public string ModVersion = MatchHistoryMod.pluginVersion;
-        public string MatchId;
-        public string CompressedGunneryData;
-        public string CompressedPositionData;
-        public LobbyData LobbyData;
-
-        public UploadPacket(LobbyData lobbyData, GunneryData gunneryData, List<ShipPositionData> positionData)
-        {
-            ModVersion = MatchHistoryMod.pluginVersion;
-            LobbyData = lobbyData;
-            MatchId = lobbyData.MatchId;
-            CompressedGunneryData = SerializeAndCompress(gunneryData);
-            CompressedPositionData = SerializeAndCompress(positionData);
-        }
-
-        public static string SerializeAndCompress(object obj)
-        {
-            string json = JsonConvert.SerializeObject(obj, new VectorJsonConverter());
-            byte[] data = Encoding.ASCII.GetBytes(json);
-            MemoryStream output = new MemoryStream();
-            using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
-            {
-                dstream.Write(data, 0, data.Length);
-            }
-            byte[] outArr = output.ToArray();
-            string outStr = Convert.ToBase64String(outArr);
-            return outStr;
-        }
-
-        public byte[] GetByteEncoded()
-        {
-            string json = JsonConvert.SerializeObject(this, new VectorJsonConverter());
-            byte[] bytes = Encoding.ASCII.GetBytes(json);
-            return bytes;
-        }
-    }
-
-
     [HarmonyPatch]
     public static class MatchHistoryRecorder
     {
-        public static void UploadMatchData(UploadPacket packet)
-        {
-            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
-            const string _UploadURL = "http://statsoficarus.xyz/submit_match_history";
-            //const string _UploadURL = "http://localhost/submit_match_history";
-            var request = (HttpWebRequest)WebRequest.Create(_UploadURL);
-            var data = packet.GetByteEncoded();
-            request.Method = "POST";
-            request.Timeout = 8000;
-            request.ContentType = "application/json";
-            request.ContentLength = data.Length;
-
-            try
-            {
-                //MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
-                using (var stream = request.GetRequestStream())
-                {
-                    stream.Write(data, 0, data.Length);
-                }
-
-                var response = (HttpWebResponse)request.GetResponse();
-                var responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
-                int responseCode = (int)response.StatusCode;
-            }
-            catch (System.Net.WebException e)
-            {
-                int status = (int)e.Status;
-                if (status == 7)
-                {
-                    var responseString = new StreamReader(e.Response.GetResponseStream()).ReadToEnd();
-                    MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(responseString));
-                }
-                else if (status == 14)
-                {
-                    MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Upload failed: Match history server unresponsive."));
-                }
-                else
-                {
-                }
-            }
-        }
-
+        static ACMI.ACMIRecorder recorder;
 
         [HarmonyPostfix]
         [HarmonyPatch(typeof(Mission), "Start")]
         private static void MissionStarted()
         {
+            FileLog.Log("Initializing mission.");
             MatchDataRecorder.Reset();
+            recorder = new ACMI.ACMIRecorder();
+            recorder.StartTimer();
         }
 
         // Called when match ends and post game screen is shown.
@@ -122,116 +44,96 @@ namespace MatchHistoryMod
         private static void MatchComplteStateEnter()
         {
             // Use to get time of match and some other stats
-            MatchActions.GetMatchStats(new Muse.Networking.ExtensionResponseDelegate(GetMatchStats));
-            //File.WriteAllText("FullMatchData.json", MatchDataRecorder.GetJSONDump());
+            //MatchActions.GetMatchStats(new Muse.Networking.ExtensionResponseDelegate(GetMatchStats));
+
+            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Saving replay..."));
+            File.WriteAllText("MatchRecording.acmi", recorder.Output);
+            //LobbyData lobbyData = new LobbyData(MatchLobbyView.Instance, Mission.Instance)
+            //{
+            //    MatchTime = (int)Math.Round((double)recorder.GetTimestampSeconds())
+            //};
+            //Thread uploadThread = new Thread(() =>
+            //{
+            //    MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
+            //    string reply = UploadPacket.UploadMatchData(new UploadPacket(lobbyData, MatchDataRecorder.ActiveGunneryData, MatchDataRecorder.ShipPositions));
+            //    MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(reply));
+            //});
+            //uploadThread.Start();
             //File.WriteAllText("AccuracyTable.txt", MatchDataRecorder.GetTableDump());
+            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Done."));
         }
 
-
-        public static void GetMatchStats(Muse.Networking.ExtensionResponse resp)
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
+        private static void ShipUpdate(Ship __instance)
         {
-            // TODO: remove 90% of this.
-            JsonData jsonData = resp.JsonData;
-            Dictionary<string, int> dictionary = new Dictionary<string, int>();
-            IDictionary dictionary2 = jsonData["stats"];
-            if (dictionary2 != null)
+            try
             {
-                IDictionaryEnumerator enumerator = dictionary2.GetEnumerator();
-                try
-                {
-                    while (enumerator.MoveNext())
-                    {
-                        object obj = enumerator.Current;
-                        DictionaryEntry dictionaryEntry = (DictionaryEntry)obj;
-                        dictionary[dictionaryEntry.Key.ToString()] = (int)((JsonData)dictionaryEntry.Value);
-                    }
-                }
-                finally
-                {
-                    IDisposable disposable;
-                    if ((disposable = (enumerator as IDisposable)) != null)
-                    {
-                        disposable.Dispose();
-                    }
-                }
+                recorder.AddShipPosition(__instance);
             }
-            else
+            catch { }
+        }
+
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(Turret), "Fire")]
+        //private static void TurretFire(Turret __instance)
+        //{
+
+        //}
+
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(Turret), "Fire")]
+        //private static void TurretFire(Turret __instance)
+        //{
+        //    FileLog.Log("Turret fired");
+        //    //__instance.shots
+        //}
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Turret), "OnRemoteUpdate")]
+        private static void TurretUpdate(Turret __instance)
+        {
+            int? oldAmmunition = Traverse.Create(__instance).Field("oldAmmunition").GetValue() as int?;
+            int? ammounition = Traverse.Create(__instance).Field("ammunition").GetValue() as int?;
+            int? clipSize = Traverse.Create(__instance).Field("ammunitionClipSize").GetValue() as int?;
+            bool? reload = Traverse.Create(__instance).Field("reload").GetValue() as bool?;
+
+            if (NetworkedPlayer.Local.CurrentShip != __instance.Ship) return;
+            if (oldAmmunition == 0)
             {
-                MuseLog.InfoFormat("no statsData", new object[0]);
+                oldAmmunition = clipSize;
             }
-            Dictionary<int, float> dictionary3 = new Dictionary<int, float>();
-            IDictionary dictionary4 = jsonData["quests"];
-            if (dictionary4 != null)
+            if (oldAmmunition <= ammounition) return; // Continue only if ammo decreased, meaning shot was fired.
+            if (ammounition == 0 && oldAmmunition >= 2 && reload == true)
             {
-                IDictionaryEnumerator enumerator2 = dictionary4.GetEnumerator();
-                try
-                {
-                    while (enumerator2.MoveNext())
-                    {
-                        object obj2 = enumerator2.Current;
-                        DictionaryEntry dictionaryEntry2 = (DictionaryEntry)obj2;
-                        int num = -1;
-                        if (int.TryParse(dictionaryEntry2.Key.ToString(), out num) && num != -1)
-                        {
-                            dictionary3[num] = (float)((JsonData)dictionaryEntry2.Value);
-                        }
-                    }
-                }
-                finally
-                {
-                    IDisposable disposable2;
-                    if ((disposable2 = (enumerator2 as IDisposable)) != null)
-                    {
-                        disposable2.Dispose();
-                    }
-                }
-            }
-            else
-            {
-                MuseLog.InfoFormat("no quests data", new object[0]);
-            }
-            Dictionary<string, int> dictionary5 = new Dictionary<string, int>();
-            IDictionary dictionary6 = jsonData["crewStats"];
-            if (dictionary6 != null)
-            {
-                IDictionaryEnumerator enumerator3 = dictionary6.GetEnumerator();
-                try
-                {
-                    while (enumerator3.MoveNext())
-                    {
-                        object obj3 = enumerator3.Current;
-                        DictionaryEntry dictionaryEntry3 = (DictionaryEntry)obj3;
-                        string key = dictionaryEntry3.Key.ToString();
-                        dictionary5[key] = (int)((JsonData)dictionaryEntry3.Value);
-                    }
-                }
-                finally
-                {
-                    IDisposable disposable3;
-                    if ((disposable3 = (enumerator3 as IDisposable)) != null)
-                    {
-                        disposable3.Dispose();
-                    }
-                }
-                UIMatchEndCrewPanel.instance.SetStats(dictionary5);
-            }
-            else
-            {
-                MuseLog.InfoFormat("no crewStats data", new object[0]);
+                // Gun was reloaded early.
+                // TODO: better conditions for low ammo guns
+                // Will currently count reload at 1 ammo as a shot.
+                return;
             }
 
-            LobbyData lobbyData = new LobbyData(MatchLobbyView.Instance, Mission.Instance)
+            int shotsFired = (int)(oldAmmunition - ammounition);
+            //FileLog.Log($"Fired {shotsFired} shots. R:{reload} O:{oldAmmunition} N:{ammounition}");
+            for (int i = 0; i < shotsFired; i++)
             {
-                MatchTime = dictionary5["Time Completed"]
-            };
-            //FileLog.Log(JsonConvert.SerializeObject(d));
+                try
+                {
+                    recorder.TurretFired(__instance);
+                }
+                catch
+                {
 
-            Thread uploadThread = new Thread(() =>
-                UploadMatchData(new UploadPacket(lobbyData, MatchDataRecorder.ActiveGunneryData, MatchDataRecorder.ShipPositions))
-            );
-            uploadThread.Start();
+                }
+            }
 
         }
+
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(Ship), "OnRemoteDestroy")]
+        //private static void ShipDestroy(Ship __instance)
+        //{
+        //    //ShipPositionData.TakeSnapshot(__instance, ShipPositions);
+        //}
     }
 
 
