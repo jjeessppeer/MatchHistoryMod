@@ -101,7 +101,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ACMIRecorder.cs" />
+    <Compile Include="ACMI\ACMIConstants.cs" />
+    <Compile Include="ACMI\ACMIRecorder.cs" />
     <Compile Include="ActiveStats\ActiveMatchStats.cs" />
     <Compile Include="ActiveStats\ShipPositions.cs" />
     <Compile Include="ObjectListTransposer.cs" />
