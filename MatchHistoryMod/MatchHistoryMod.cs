@@ -19,13 +19,13 @@ namespace MatchHistoryMod
     {
         public const string pluginGuid = "whereami.matchhistory.mod";
         public const string pluginName = "Match History Mod";
-        public const string pluginVersion = "1.0.0";
+        public const string pluginVersion = "2.0.0";
 
         public void Awake()
         {
             var harmony = new Harmony(pluginGuid);
             harmony.PatchAll();
-            FileLog.Log("MOD PATCHED");
+            FileLog.Log($"MOD PATCHED: {pluginVersion}");
         }
     }
     

@@ -103,6 +103,9 @@
   <ItemGroup>
     <Compile Include="ACMI\ACMIConstants.cs" />
     <Compile Include="ACMI\ACMIRecorder.cs" />
+    <Compile Include="ACMI\AcmiFile.cs" />
+    <Compile Include="ACMI\MatchRecorder.cs" />
+    <Compile Include="ACMI\MatchRecorderPatch.cs" />
     <Compile Include="ActiveStats\ActiveMatchStats.cs" />
     <Compile Include="ActiveStats\ShipPositions.cs" />
     <Compile Include="ObjectListTransposer.cs" />
