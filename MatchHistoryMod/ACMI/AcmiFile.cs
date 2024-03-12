@@ -5,12 +5,14 @@ using System.Text;
 using System.Reflection;
 using UnityEngine;
 using System.IO;
-
+using System.Text.RegularExpressions;
 
 namespace MatchHistoryMod.ACMI
 {
     class AcmiFile
     {
+        static readonly Regex rgx = new Regex("[^a-zA-Z0-9]");
+
         private string buffer = "";
 
         private readonly string FilePath;
@@ -138,6 +140,20 @@ namespace MatchHistoryMod.ACMI
             // TODO: different behavior for mines and shells.
             // * Projectile until arming time.
             // * Stationary until detonation.
+        }
+
+        public void AddRepairableUpdate(Repairable repairable, float timestamp, RepairableState state)
+        {
+            Ship ship = repairable.Ship;
+            string id = GetShipACMIId(ship);
+            string componentName = rgx.Replace(repairable.SlotName, "");
+            string evt = $"{id}," +
+                $"{componentName}Health={state.Health}," +
+                $"{componentName}MaxHealth={state.MaxHealth}," +
+                $"{componentName}Broken={state.Broken}," +
+                $"{componentName}RebuildProgress={state.RebuildProgress}," +
+                $"{componentName}OnCooldown={state.OnCooldown}";
+            Write($"#{timestamp}\n{evt}");
         }
 
         private static string VectorToTransform(Vector3 vector, Vector3? heading = null)

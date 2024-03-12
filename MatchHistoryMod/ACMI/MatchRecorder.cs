@@ -11,7 +11,7 @@ namespace MatchHistoryMod.ACMI
 {
     class MatchRecorder
     {
-        const float ShipUpdateInterval = 2;
+        public const float ShipUpdateInterval = 2;
 
         public static MatchRecorder CurrentMatchRecorder;
 
@@ -21,6 +21,7 @@ namespace MatchHistoryMod.ACMI
         readonly Dictionary<string, float> ShipLastTimestamp = new Dictionary<string, float>();
         readonly Dictionary<string, bool> ShipLastDead = new Dictionary<string, bool>();
         readonly Dictionary<int, ShellInfo> ActiveShells = new Dictionary<int, ShellInfo>();
+        readonly Dictionary<int, RepairableState> RepairableStates = new Dictionary<int, RepairableState>();
 
         public MatchRecorder(Mission mission)
         {
@@ -48,6 +49,8 @@ namespace MatchHistoryMod.ACMI
 
         public void UpdateShipPosition(Ship ship)
         {
+            // TODO: Check for movement. If angular or positional difference is large apply update.
+
             string id = AcmiFile.GetShipACMIId(ship);
             float timestamp = GetTimestampSeconds();
 
@@ -62,7 +65,6 @@ namespace MatchHistoryMod.ACMI
                 {
                     AcmiFile.AddShipDeath(ship, timestamp);
                 }
-
                 ShipLastTimestamp[id] = timestamp;
                 ShipLastDead[id] = ship.IsDead;
             }
@@ -70,6 +72,11 @@ namespace MatchHistoryMod.ACMI
 
         public void ShellFired(BaseShell shell)
         {
+            if (ActiveShells.ContainsKey(shell.GetInstanceID()))
+            {
+                // Make sure the instance is not active already
+                ShellDetonated(shell);
+            }
             Console.WriteLine($"SHELL FIRED: {shell.GetInstanceID()}");
             float timestamp = GetTimestampSeconds();
             ActiveShells.Add(shell.GetInstanceID(), new ShellInfo(shell, timestamp));
@@ -82,6 +89,21 @@ namespace MatchHistoryMod.ACMI
             float timestamp = GetTimestampSeconds();
             AcmiFile.AddShellDetonation(shell, timestamp, ActiveShells[shell.GetInstanceID()]);
             ActiveShells.Remove(shell.GetInstanceID());
+        }
+
+        public void RepairableUpdate(Repairable repairable)
+        {
+            if (repairable.Ship == null) return;
+
+            int networkId = repairable.NetworkId;
+            RepairableState newState = new RepairableState(repairable);
+            if (!RepairableStates.ContainsKey(networkId) ||
+                !RepairableStates[networkId].Equals(newState))
+            {
+                AcmiFile.AddRepairableUpdate(repairable, GetTimestampSeconds(), newState);
+                RepairableStates[networkId] = newState;
+            }
+
         }
 
         public static void Start(Mission mission)
@@ -106,25 +128,44 @@ namespace MatchHistoryMod.ACMI
         }
     }
 
-    struct RepairableStatus
+    struct RepairableState
     {
-        public float Health;
-        public float MaxHealth;
+        public int Health;
+        public int MaxHealth;
         public bool Broken;
-        public float RepairProgress;
-        public RepairableStatus(Repairable repairable)
+        public int RebuildProgress;
+        public bool OnCooldown;
+        public RepairableState(Repairable repairable)
         {
-            Health = repairable.Health;
-            MaxHealth = repairable.MaxHealth;
+            Health = (int)repairable.Health;
+            MaxHealth = (int)repairable.MaxHealth;
             Broken = repairable.NoHealth;
-            try
-            {
-                RepairProgress = (repairable.NoHealth ? repairable.Network.MyView.GetAppFixed(50 - 16) : 1);
-            }
-            catch
-            {
-                RepairProgress = 1.0f;
-            }
+            if (Broken && repairable.RepairProgress == 1) RebuildProgress = 0;
+            else if (Broken) RebuildProgress = ((int)(repairable.RepairProgress * 100));
+            else RebuildProgress = 100;
+            OnCooldown = Broken ? false : repairable.RepairProgress != 1;
         }
+    }
+
+    struct ShipState
+    {
+        public Vector3 Position;
+        public Vector3 Forward;
+        public bool IsDead;
+        public float Timestamp;
+        public ShipState(Ship ship, float timestamp)
+        {
+            Position = ship.Position;
+            Forward = ship.Forward;
+            IsDead = ship.IsDead;
+            Timestamp = timestamp;
+        }
+        //public bool PositionUpdateNeeded(ShipState newState)
+        //{
+        //    if (Timestamp - newState.Timestamp >= MatchRecorder.ShipUpdateInterval) return true;
+        //    if (IsDead != newState.IsDead) return true;
+        //    //if (SHIP_MOVED_TOO_MUCH) return true;
+        //    return false;
+        //}
     }
 }

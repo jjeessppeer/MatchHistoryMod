@@ -42,7 +42,7 @@ namespace MatchHistoryMod.ACMI
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
+        [HarmonyPatch(typeof(Ship), "Update")]
         private static void ShipUpdate(Ship __instance)
         {
             // Update ship position.
@@ -68,9 +68,9 @@ namespace MatchHistoryMod.ACMI
         [HarmonyPatch(typeof(Repairable), "OnRemoteUpdate")]
         private static void RepairableUpdated(Repairable __instance)
         {
-            //FileLog.Log($"Repairable updated");
+            MatchRecorder.CurrentMatchRecorder?.RepairableUpdate(__instance);
         }
     }
 
-    
+
 }
