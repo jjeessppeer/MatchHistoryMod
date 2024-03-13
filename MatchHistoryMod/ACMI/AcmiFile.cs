@@ -13,7 +13,7 @@ namespace MatchHistoryMod.ACMI
     {
         static readonly Regex rgx = new Regex("[^a-zA-Z0-9]");
 
-        private const int MaxBufferSize = 50000; // After buffer reaches size it will be written to file.
+        private const int MaxBufferSize = 0; // After buffer reaches size it will be written to file.
 
         private readonly StringBuilder Buffer = new StringBuilder();
 
@@ -111,7 +111,7 @@ namespace MatchHistoryMod.ACMI
             string transform = VectorToTransform(shell.position);
             string id = GetShellAcmiId(shell);
             string evt = $"{id},T={transform},Name=goio-projectile-{turretType},Parent={shipId},ShooterName={shooterName},ShooterId={shooterUserId},Color={ACMIConstants.GetColor(side)}";
-            Write($"#{timestamp}\n{evt}");
+            Write($"#{timestamp}\n{evt}", false);
         }
 
         public void AddShellDetonation(BaseShell shell, float hitTimestamp, ShellInfo launch)

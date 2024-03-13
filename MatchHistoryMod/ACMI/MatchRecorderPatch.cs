@@ -72,7 +72,7 @@ namespace MatchHistoryMod.ACMI
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(Repairable), "OnRemoteUpdate")]
+        [HarmonyPatch(typeof(Repairable), "Update")]
         private static void RepairableUpdated(Repairable __instance)
         {
             MatchRecorder.CurrentMatchRecorder?.RepairableUpdate(__instance);
