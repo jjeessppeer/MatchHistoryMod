@@ -22,6 +22,9 @@ namespace MatchHistoryMod.ACMI
         readonly long GameStartTimestamp;
         readonly Dictionary<string, float> ShipLastTimestamp = new Dictionary<string, float>();
         readonly Dictionary<string, bool> ShipLastDead = new Dictionary<string, bool>();
+        readonly HashSet<string> RegisteredShips = new HashSet<string>();
+
+
         readonly Dictionary<int, ShellInfo> ActiveShells = new Dictionary<int, ShellInfo>();
         readonly Dictionary<int, RepairableState> RepairableStates = new Dictionary<int, RepairableState>();
 
@@ -49,37 +52,28 @@ namespace MatchHistoryMod.ACMI
             return (float)timestamp / 1000.0f;
         }
 
-        public void RegisterShips(MatchLobbyView mlv)
-        {
-        }
-
         public void UpdateShipPosition(Ship ship)
         {
-            // TODO: Check for movement. If angular or positional difference is large apply update.
-
             string id = AcmiFile.GetShipACMIId(ship);
             float timestamp = GetTimestampSeconds();
-
-
-            //FileLog.Log($"{ship.IsDead}");
-
-            if (ship.IsDead)
+            
+            if (!RegisteredShips.Contains(id))
             {
-                FileLog.Log($"Ships dead.");
+                AcmiFile.AddShipInfo(ship);
+
+                RegisteredShips.Add(id);
+                ShipLastDead[id] = false;
+                ShipLastTimestamp[id] = int.MinValue;
             }
 
+            // TODO: Check for movement. If angular or positional difference is large apply update.
             // Write ship position to file if time has passed.
-            if (!ShipLastTimestamp.ContainsKey(id) || 
-                timestamp - ShipLastTimestamp[id] >= ShipUpdateInterval ||
+            if (timestamp - ShipLastTimestamp[id] >= ShipUpdateInterval ||
                 ShipLastDead[id] != ship.IsDead)
             {
                 AcmiFile.AddShipPosition(ship, timestamp);
 
-                if (ShipLastDead.ContainsKey(id))
-                {
-                    FileLog.Log($"Dead: {ship.IsDead}, {ShipLastDead[id]} | {ShipLastDead.ContainsKey(id) && ship.IsDead && !ShipLastDead[id]}");
-                }
-                if (ShipLastDead.ContainsKey(id) && ship.IsDead && !ShipLastDead[id])
+                if (ship.IsDead && !ShipLastDead[id])
                 {
                     AcmiFile.AddShipDeath(ship, timestamp);
                     AcmiFile.Flush();
@@ -114,6 +108,7 @@ namespace MatchHistoryMod.ACMI
         public void RepairableUpdate(Repairable repairable)
         {
             if (repairable.Ship == null) return;
+            if (!RegisteredShips.Contains(AcmiFile.GetShipACMIId(repairable.Ship))) return;
 
             int networkId = repairable.NetworkId;
             RepairableState newState = new RepairableState(repairable);

@@ -63,16 +63,18 @@ namespace MatchHistoryMod.ACMI
             Flush();
         }
 
-        public void RegisterShip()
+        public void AddShipInfo(Ship ship)
         {
-            // TODO: move unchanging ship date here from AddShipPosition.
+            string id = GetShipACMIId(ship);
+            string evt = $"{id},Name=goio-ship-{ship.ShipModelId},CallSign={ship.name},Color={ACMIConstants.GetColor(ship.Side)}";
+            Write($"#0\n{evt}");
         }
 
         public void AddShipPosition(Ship ship, float timestamp)
         {
             string id = GetShipACMIId(ship);
             string transform = VectorToTransform(ship.position, ship.Forward);
-            string evt = $"{id},T={transform},Name=goio-ship-{ship.ShipModelId},CallSign={ship.name},Color={ACMIConstants.GetColor(ship.Side)}";
+            string evt = $"{id},T={transform}";
             Write($"#{timestamp}\n{evt}");
         }
 
