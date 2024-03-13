@@ -13,7 +13,9 @@ namespace MatchHistoryMod.ACMI
     {
         static readonly Regex rgx = new Regex("[^a-zA-Z0-9]");
 
-        private string buffer = "";
+        private const int MaxBufferSize = 50000; // After buffer reaches size it will be written to file.
+
+        private readonly StringBuilder Buffer = new StringBuilder();
 
         private readonly string FilePath;
 
@@ -34,16 +36,19 @@ namespace MatchHistoryMod.ACMI
         {
             using (var fs = File.Open(FilePath, FileMode.Append, FileAccess.Write))
             {
-                byte[] info = new UTF8Encoding(true).GetBytes(buffer);
+                byte[] info = new UTF8Encoding(true).GetBytes(Buffer.ToString());
                 fs.Write(info, 0, info.Length);
-                buffer = "";
+                Buffer.Clear();
             }
         }
 
-        private void Write(string str, bool flush = true)
+        private void Write(string str, bool allowFlush = true)
         {
-            buffer += str + "\n";
-            if (flush) Flush();
+            Buffer.AppendLine(str);
+            if (allowFlush && Buffer.Length >= MaxBufferSize)
+            {
+                Flush();
+            }
         }
 
         public void AddHeader(int mapId, string mapName, DateTime date)
@@ -55,6 +60,7 @@ namespace MatchHistoryMod.ACMI
             string config = $"0,ReferenceTime={dateStr}T00:00:00Z,ReferenceLongitude={mapLongOffset},ReferenceLatitude=0.5";
             string mapItem = $"#0\n1,T=0|0|0,Name=goio-enviro-{mapId},Color=Orange";
             Write($"{header}\n{config}\n{mapItem}");
+            Flush();
         }
 
         public void RegisterShip()
@@ -144,6 +150,7 @@ namespace MatchHistoryMod.ACMI
 
         public void AddRepairableUpdate(Repairable repairable, float timestamp, RepairableState state)
         {
+            // TODO: Only write data which has changed.
             Ship ship = repairable.Ship;
             string id = GetShipACMIId(ship);
             string componentName = rgx.Replace(repairable.SlotName, "");
@@ -164,7 +171,7 @@ namespace MatchHistoryMod.ACMI
             double longitude = vector.x * mToDeg;
             double latitude = vector.z * mToDeg;
             double altitude = vector.y;
-            string t = $"{longitude}|{latitude}|{altitude}";
+            string t = $"{longitude:0.#######}|{latitude:0.#######}|{altitude:0.0}";
 
             if (heading.HasValue)
             {
@@ -172,10 +179,16 @@ namespace MatchHistoryMod.ACMI
                 //double pitch = Math.Asin(heading.Value.y) * 360 / (2 * Math.PI);
                 double pitch = 0;
                 double yaw = -Math.Atan2(heading.Value.z, heading.Value.x) * 360 / (2 * Math.PI) + 90;
-                t = $"{t}|{roll}|{pitch}|{yaw}";
+                t = $"{t}|{roll}|{pitch}|{yaw:0.0#}";
             }
             return t;
         }
+
+
+        //public static string GetPlayerAcmiId(NetworkedPlayer player)
+        //{
+        //    return $""{GetShipACMIId(player.CurrentShip)}{};
+        //}
 
         public static string GetShipACMIId(Ship ship)
         {

@@ -14,8 +14,10 @@ namespace MatchHistoryMod.ACMI
         public const float ShipUpdateInterval = 2;
 
         public static MatchRecorder CurrentMatchRecorder;
+        public static MatchRecorder InitializingMatchRecorder;
 
         public readonly AcmiFile AcmiFile;
+        private bool ShipsRegistered = false;
 
         readonly long GameStartTimestamp;
         readonly Dictionary<string, float> ShipLastTimestamp = new Dictionary<string, float>();
@@ -47,12 +49,24 @@ namespace MatchHistoryMod.ACMI
             return (float)timestamp / 1000.0f;
         }
 
+        public void RegisterShips(MatchLobbyView mlv)
+        {
+        }
+
         public void UpdateShipPosition(Ship ship)
         {
             // TODO: Check for movement. If angular or positional difference is large apply update.
 
             string id = AcmiFile.GetShipACMIId(ship);
             float timestamp = GetTimestampSeconds();
+
+
+            //FileLog.Log($"{ship.IsDead}");
+
+            if (ship.IsDead)
+            {
+                FileLog.Log($"Ships dead.");
+            }
 
             // Write ship position to file if time has passed.
             if (!ShipLastTimestamp.ContainsKey(id) || 
@@ -61,9 +75,14 @@ namespace MatchHistoryMod.ACMI
             {
                 AcmiFile.AddShipPosition(ship, timestamp);
 
+                if (ShipLastDead.ContainsKey(id))
+                {
+                    FileLog.Log($"Dead: {ship.IsDead}, {ShipLastDead[id]} | {ShipLastDead.ContainsKey(id) && ship.IsDead && !ShipLastDead[id]}");
+                }
                 if (ShipLastDead.ContainsKey(id) && ship.IsDead && !ShipLastDead[id])
                 {
                     AcmiFile.AddShipDeath(ship, timestamp);
+                    AcmiFile.Flush();
                 }
                 ShipLastTimestamp[id] = timestamp;
                 ShipLastDead[id] = ship.IsDead;
@@ -106,15 +125,26 @@ namespace MatchHistoryMod.ACMI
 
         }
 
-        public static void Start(Mission mission)
+
+        public static void InitializeRecorder(Mission mission)
         {
-            CurrentMatchRecorder = new MatchRecorder(mission);
+            InitializingMatchRecorder = new MatchRecorder(mission);
         }
-        public static void Stop()
+
+        public static void StartRecorder()
         {
+            CurrentMatchRecorder = InitializingMatchRecorder;
+            InitializingMatchRecorder = null;
+        }
+
+        public static void StopRecorder()
+        {
+            if (CurrentMatchRecorder == null) return;
             CurrentMatchRecorder?.AcmiFile.Flush();
             CurrentMatchRecorder = null;
+            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Replay saved."));
         }
+
     }
 
     struct ShellInfo

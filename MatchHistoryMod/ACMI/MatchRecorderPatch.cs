@@ -11,24 +11,32 @@ namespace MatchHistoryMod.ACMI
     [HarmonyPatch]
     class MatchRecorderPatch
     {
-        //[HarmonyPostfix]
-        //[HarmonyPatch(typeof(MatchLobbyView), "Start")]
-        //private static void MissionStart()
-        //{
-        //    // Called after a new match is started.
-        //    FileLog.Log("Initializing mission.");
-        //    MatchRecorder.Start();
-        //    FileLog.Log("Recorder intialized.");
-        //}
-
         [HarmonyPostfix]
         [HarmonyPatch(typeof(Mission), "Start")]
         private static void MissionStart(Mission __instance)
         {
-            // Called after a new match is started.
-            FileLog.Log("Initializing mission.");
-            MatchRecorder.Start(__instance);
-            FileLog.Log("Recorder intialized.");
+            FileLog.Log("Initializing recorder...");
+            MatchRecorder.InitializeRecorder(__instance);
+            FileLog.Log("done.");
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(MatchLobbyView), "OnRemoteUpdate")]
+        private static void MlvUpdate(MatchLobbyView __instance)
+        {
+            if (MatchRecorder.InitializingMatchRecorder == null) return;
+            FileLog.Log("Starting recorder...");
+            MatchRecorder.StartRecorder();
+            FileLog.Log("done.");
+        }
+
+        // Called when match ends and post game screen is shown.
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Mission), "OnDisable")]
+        private static void MissionOnDisable()
+        {
+            FileLog.Log("Mission disabled...");
+            MatchRecorder.StopRecorder();
         }
 
         // Called when match ends and post game screen is shown.
@@ -36,24 +44,23 @@ namespace MatchHistoryMod.ACMI
         [HarmonyPatch(typeof(UIManager.UIMatchCompleteState), "Enter")]
         private static void MatchComplteStateEnter()
         {
-            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Saving replay..."));
-            MatchRecorder.Stop();
-            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Done."));
+            FileLog.Log("Match completed...");
+            MatchRecorder.StopRecorder();
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(Ship), "Update")]
+        [HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
         private static void ShipUpdate(Ship __instance)
         {
             // Update ship position.
             MatchRecorder.CurrentMatchRecorder?.UpdateShipPosition(__instance);
         }
 
+        // Shell projectile was fired.
         [HarmonyPostfix]
         [HarmonyPatch(typeof(BaseShell), "OnLaunch")]
         private static void ShellLaunched(BaseShell __instance)
         {
-            // Shell projectile was fired.
             MatchRecorder.CurrentMatchRecorder?.ShellFired(__instance);
         }
 
@@ -70,6 +77,13 @@ namespace MatchHistoryMod.ACMI
         {
             MatchRecorder.CurrentMatchRecorder?.RepairableUpdate(__instance);
         }
+
+        //[HarmonyPostfix]
+        //[HarmonyPatch(typeof(NetworkedPlayer), "Update")]
+        //private static void PlayerUpdate(Repairable __instance)
+        //{
+        //    MatchRecorder.CurrentMatchRecorder?.RepairableUpdate(__instance);
+        //}
     }
 
 
