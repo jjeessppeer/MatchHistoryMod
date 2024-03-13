@@ -98,7 +98,8 @@ namespace MatchHistoryMod.ACMI
             }
             Console.WriteLine($"SHELL FIRED: {shell.GetInstanceID()}");
             float timestamp = GetTimestampSeconds();
-            ActiveShells.Add(shell.GetInstanceID(), new ShellInfo(shell, timestamp));
+            ActiveShells[shell.GetInstanceID()] = new ShellInfo(shell, timestamp);
+            //ActiveShells.Add(shell.GetInstanceID(), new ShellInfo(shell, timestamp));
             AcmiFile.AddShell(shell, timestamp);
         }
 
