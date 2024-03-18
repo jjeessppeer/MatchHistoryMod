@@ -27,19 +27,20 @@ namespace MatchHistoryMod
     public class UploadPacket
     {
         public string ModVersion = MatchHistoryMod.pluginVersion;
-        public static string SerializeAndCompress(object obj)
-        {
-            string json = JsonConvert.SerializeObject(obj, new VectorJsonConverter());
-            byte[] data = Encoding.ASCII.GetBytes(json);
-            MemoryStream output = new MemoryStream();
-            using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
-            {
-                dstream.Write(data, 0, data.Length);
-            }
-            byte[] outArr = output.ToArray();
-            string outStr = Convert.ToBase64String(outArr);
-            return outStr;
-        }
+
+        //public static string SerializeAndCompress(object obj)
+        //{
+        //    string json = JsonConvert.SerializeObject(obj, new VectorJsonConverter());
+        //    byte[] data = Encoding.ASCII.GetBytes(json);
+        //    MemoryStream output = new MemoryStream();
+        //    using (GZipStream dstream = new GZipStream(output, CompressionMode.Compress))
+        //    {
+        //        dstream.Write(data, 0, data.Length);
+        //    }
+        //    byte[] outArr = output.ToArray();
+        //    string outStr = Convert.ToBase64String(outArr);
+        //    return outStr;
+        //}
 
         public byte[] GetByteEncoded()
         {
@@ -63,6 +64,13 @@ namespace MatchHistoryMod
 
     public class ReplayUploadPacket : UploadPacket
     {
+        public string MatchId;
+        public string AcmiString;
 
+        public ReplayUploadPacket(ACMI.AcmiFile acmiFile, string matchId)
+        {
+            MatchId = matchId;
+            AcmiString = acmiFile.ToString();
+        }
     }
 }

@@ -117,7 +117,16 @@ namespace MatchHistoryMod.ACMI
                 AcmiFile.AddRepairableUpdate(repairable, GetTimestampSeconds(), newState);
                 RepairableStates[networkId] = newState;
             }
+        }
 
+        public void UploadReplay()
+        {
+            if (MatchLobbyView.Instance == null) return;
+            UploadPacket packet = new ReplayUploadPacket(AcmiFile, MatchLobbyView.Instance.MatchId);
+            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading replay..."));
+            string response = Uploader.PostPacket(packet, "submit_replay");
+            if (response.Length > 0)
+                MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(response));
         }
 
 
@@ -137,12 +146,11 @@ namespace MatchHistoryMod.ACMI
             if (CurrentMatchRecorder == null) return;
             CurrentMatchRecorder?.AcmiFile.Flush();
             CurrentMatchRecorder = null;
-            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Replay saved."));
+            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Local replay saved."));
         }
-
     }
 
-    struct ShellInfo
+    public struct ShellInfo
     {
         public Vector3 LaunchPosition;
         public float LaunchTimestamp;
@@ -153,7 +161,7 @@ namespace MatchHistoryMod.ACMI
         }
     }
 
-    struct RepairableState
+    public struct RepairableState
     {
         public int Health;
         public int MaxHealth;
@@ -172,7 +180,7 @@ namespace MatchHistoryMod.ACMI
         }
     }
 
-    struct ShipState
+    public struct ShipState
     {
         public Vector3 Position;
         public Vector3 Forward;

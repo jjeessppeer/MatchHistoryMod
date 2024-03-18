@@ -9,15 +9,17 @@ using System.Text.RegularExpressions;
 
 namespace MatchHistoryMod.ACMI
 {
-    class AcmiFile
+    public class AcmiFile
     {
         static readonly Regex rgx = new Regex("[^a-zA-Z0-9]");
 
-        private const int MaxBufferSize = 0; // After buffer reaches size it will be written to file.
+        // After buffer reaches size it will be written to file.
+        // Approximately 10MB.
+        private const int MaxBufferSize = 10000000; 
 
         private readonly StringBuilder Buffer = new StringBuilder();
-
         private readonly string FilePath;
+        private bool Flushed = false;
 
         public AcmiFile(int mapId, string mapName, DateTime date)
         {
@@ -32,8 +34,17 @@ namespace MatchHistoryMod.ACMI
             } while (File.Exists(FilePath));
         }
 
+        public override string ToString()
+        {
+            if (!Flushed)
+                return Buffer.ToString();
+            Flush();
+            return File.ReadAllText(FilePath);
+        }
+
         public void Flush()
         {
+            Flushed = true;
             using (var fs = File.Open(FilePath, FileMode.Append, FileAccess.Write))
             {
                 byte[] info = new UTF8Encoding(true).GetBytes(Buffer.ToString());

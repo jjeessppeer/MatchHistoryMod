@@ -15,9 +15,7 @@ namespace MatchHistoryMod.ACMI
         [HarmonyPatch(typeof(Mission), "Start")]
         private static void MissionStart(Mission __instance)
         {
-            FileLog.Log("Initializing recorder...");
             MatchRecorder.InitializeRecorder(__instance);
-            FileLog.Log("done.");
         }
 
         [HarmonyPostfix]
@@ -28,19 +26,21 @@ namespace MatchHistoryMod.ACMI
             MatchRecorder.StartRecorder();
         }
 
-        // Called when match ends and post game screen is shown.
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Mission), "OnDisable")]
         private static void MissionOnDisable()
         {
+            // Called when match ends and post game screen is shown.
             MatchRecorder.StopRecorder();
         }
 
-        // Called when match ends and post game screen is shown.
         [HarmonyPrefix]
         [HarmonyPatch(typeof(UIManager.UIMatchCompleteState), "Enter")]
         private static void MatchComplteStateEnter()
         {
+            // Called when match ends and post game screen is shown.
+            if (MatchRecorder.CurrentMatchRecorder == null) return;
+            MatchRecorder.CurrentMatchRecorder.UploadReplay();
             MatchRecorder.StopRecorder();
         }
 
@@ -48,7 +48,6 @@ namespace MatchHistoryMod.ACMI
         [HarmonyPatch(typeof(Ship), "OnRemoteUpdate")]
         private static void ShipUpdate(Ship __instance)
         {
-            // Update ship position.
             MatchRecorder.CurrentMatchRecorder?.UpdateShipPosition(__instance);
         }
 

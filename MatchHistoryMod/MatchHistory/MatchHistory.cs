@@ -18,8 +18,9 @@ namespace MatchHistoryMod.MatchHistory
             };
             MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading match history..."));
             UploadPacket packet = new LobbyUploadPacket(lobbyData);
-            string response = Uploader.UploadMatchData(packet);
-            MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(response));
+            string response = Uploader.PostPacket(packet, "submit_match_history");
+            if (response.Length > 0)
+                MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(response));
         }
     }
 }
