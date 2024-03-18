@@ -25,9 +25,7 @@ namespace MatchHistoryMod.ACMI
         private static void MlvUpdate(MatchLobbyView __instance)
         {
             if (MatchRecorder.InitializingMatchRecorder == null) return;
-            FileLog.Log("Starting recorder...");
             MatchRecorder.StartRecorder();
-            FileLog.Log("done.");
         }
 
         // Called when match ends and post game screen is shown.
@@ -35,7 +33,6 @@ namespace MatchHistoryMod.ACMI
         [HarmonyPatch(typeof(Mission), "OnDisable")]
         private static void MissionOnDisable()
         {
-            FileLog.Log("Mission disabled...");
             MatchRecorder.StopRecorder();
         }
 
@@ -44,7 +41,6 @@ namespace MatchHistoryMod.ACMI
         [HarmonyPatch(typeof(UIManager.UIMatchCompleteState), "Enter")]
         private static void MatchComplteStateEnter()
         {
-            FileLog.Log("Match completed...");
             MatchRecorder.StopRecorder();
         }
 

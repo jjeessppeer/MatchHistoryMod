@@ -34,7 +34,6 @@ namespace MatchHistoryMod.ACMI
             //string mapName = MatchLobbyView.Instance.Map.NameText.En;
             int mapId = mission.Map.Id;
             string mapName = mission.Map.NameText.En;
-            FileLog.Log($"MAP LOADED: {mapId} {mapName}");
 
             var date = DateTime.Now.ToUniversalTime();
 

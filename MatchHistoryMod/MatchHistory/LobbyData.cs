@@ -15,7 +15,7 @@ using System.IO;
 using System.Net;
 
 
-namespace MatchHistoryMod
+namespace MatchHistoryMod.MatchHistory
 {
     public class LobbyData
     {
