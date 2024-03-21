@@ -74,11 +74,11 @@ namespace MatchHistoryMod.ACMI
             Flush();
         }
 
-        public void AddShipInfo(Ship ship)
+        public void AddShipInfo(Ship ship, float timestamp)
         {
             string id = GetShipACMIId(ship);
             string evt = $"{id},Name=goio-ship-{ship.ShipModelId},CallSign={ship.name},Color={ACMIConstants.GetColor(ship.Side)}";
-            Write($"#0\n{evt}");
+            Write($"#{timestamp}\n{evt}");
         }
 
         public void AddShipPosition(Ship ship, float timestamp)

@@ -30,8 +30,8 @@ namespace MatchHistoryMod
 {
     public class Uploader
     {
-        //const string SERVER_ADDRESS = "http://statsoficarus.xyz";
-        public const string ServerAddress = "http://localhost";
+        public const string ServerAddress = "http://statsoficarus.xyz";
+        //public const string ServerAddress = "http://localhost";
 
         public static string PostPacket(UploadPacket packet, string path)
         {

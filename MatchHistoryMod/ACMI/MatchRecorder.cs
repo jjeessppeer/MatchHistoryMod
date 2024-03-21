@@ -55,10 +55,11 @@ namespace MatchHistoryMod.ACMI
         {
             string id = AcmiFile.GetShipACMIId(ship);
             float timestamp = GetTimestampSeconds();
-            
+
+
             if (!RegisteredShips.Contains(id))
             {
-                AcmiFile.AddShipInfo(ship);
+                AcmiFile.AddShipInfo(ship, timestamp);
 
                 RegisteredShips.Add(id);
                 ShipLastDead[id] = false;
@@ -70,13 +71,23 @@ namespace MatchHistoryMod.ACMI
             if (timestamp - ShipLastTimestamp[id] >= ShipUpdateInterval ||
                 ShipLastDead[id] != ship.IsDead)
             {
+                if (!ship.IsDead && ShipLastDead[id])
+                {
+                    // Ship spawned.
+                    AcmiFile.AddShipInfo(ship, timestamp);
+                }
+
                 AcmiFile.AddShipPosition(ship, timestamp);
 
                 if (ship.IsDead && !ShipLastDead[id])
                 {
+                    // Ship died.
                     AcmiFile.AddShipDeath(ship, timestamp);
                     AcmiFile.Flush();
                 }
+                
+
+                
                 ShipLastTimestamp[id] = timestamp;
                 ShipLastDead[id] = ship.IsDead;
             }
