@@ -103,7 +103,6 @@
   <ItemGroup>
     <Compile Include="ACMI\AcmiBuffer.cs" />
     <Compile Include="ACMI\ACMIConstants.cs" />
-    <Compile Include="ACMI\AcmiFile.cs" />
     <Compile Include="ACMI\MatchRecorder.cs" />
     <Compile Include="ACMI\MatchRecorderPatch.cs" />
     <Compile Include="MatchHistory\MatchHistory.cs" />

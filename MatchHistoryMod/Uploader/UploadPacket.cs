@@ -67,10 +67,10 @@ namespace MatchHistoryMod
         public string MatchId;
         public string AcmiString;
 
-        public ReplayUploadPacket(ACMI.AcmiFile acmiFile, string matchId)
+        public ReplayUploadPacket(ACMI.AcmiBuffer acmiBuffer, string matchId)
         {
             MatchId = matchId;
-            AcmiString = acmiFile.ToString();
+            AcmiString = acmiBuffer.ToString();
         }
     }
 }

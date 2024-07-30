@@ -17,7 +17,6 @@ namespace MatchHistoryMod.ACMI
         public static MatchRecorder CurrentMatchRecorder;
         public static MatchRecorder InitializingMatchRecorder;
 
-        public readonly AcmiFile AcmiFile;
         public readonly AcmiBuffer AcmiBuffer;
         //private bool ShipsRegistered = false;
         private readonly string MapName;
@@ -38,12 +37,11 @@ namespace MatchHistoryMod.ACMI
             //int mapId = MatchLobbyView.Instance.Map.Id;
             //string mapName = MatchLobbyView.Instance.Map.NameText.En;
             int mapId = mission.Map.Id;
-            string mapName = mission.Map.NameText.En;
             MapName = mission.Map.NameText.En;
             var date = DateTime.Now.ToUniversalTime();
 
-            AcmiFile = new AcmiFile(mapId, mapName, date);
-            AcmiFile.AddHeader(mapId, mapName, date);
+            AcmiBuffer = new AcmiBuffer();
+            AcmiBuffer.AddHeader(mapId, MapName, date);
 
             var unixTime = DateTime.Now.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             GameStartTimestamp = unixTime.Ticks / TimeSpan.TicksPerMillisecond;
@@ -58,13 +56,12 @@ namespace MatchHistoryMod.ACMI
 
         public void UpdateShipPosition(Ship ship)
         {
-            string id = AcmiFile.GetShipACMIId(ship);
+            string id = AcmiBuffer.GetShipACMIId(ship);
             float timestamp = GetTimestampSeconds();
-
 
             if (!RegisteredShips.Contains(id))
             {
-                AcmiFile.AddShipInfo(ship, timestamp);
+                AcmiBuffer.AddShipInfo(ship, timestamp);
                 RegisteredShips.Add(id);
                 ShipLastDead[id] = false;
                 ShipLastTimestamp[id] = int.MinValue;
@@ -78,19 +75,16 @@ namespace MatchHistoryMod.ACMI
                 if (!ship.IsDead && ShipLastDead[id])
                 {
                     // Ship spawned.
-                    AcmiFile.AddShipInfo(ship, timestamp);
+                    AcmiBuffer.AddShipInfo(ship, timestamp);
                 }
 
-                AcmiFile.AddShipPosition(ship, timestamp);
+                AcmiBuffer.AddShipPosition(ship, timestamp);
 
                 if (ship.IsDead && !ShipLastDead[id])
                 {
                     // Ship died.
-                    AcmiFile.AddShipDeath(ship, timestamp);
-                    AcmiFile.Flush();
+                    AcmiBuffer.AddShipDeath(ship, timestamp);
                 }
-                
-
                 
                 ShipLastTimestamp[id] = timestamp;
                 ShipLastDead[id] = ship.IsDead;
@@ -108,28 +102,28 @@ namespace MatchHistoryMod.ACMI
             float timestamp = GetTimestampSeconds();
             ActiveShells[shell.GetInstanceID()] = new ShellInfo(shell, timestamp);
             //ActiveShells.Add(shell.GetInstanceID(), new ShellInfo(shell, timestamp));
-            AcmiFile.AddShell(shell, timestamp);
+            AcmiBuffer.AddShell(shell, timestamp);
         }
 
         public void ShellDetonated(BaseShell shell)
         {
             Console.WriteLine($"SHELL DETONATED: {shell.GetInstanceID()}");
             float timestamp = GetTimestampSeconds();
-            AcmiFile.AddShellDetonation(shell, timestamp, ActiveShells[shell.GetInstanceID()]);
+            AcmiBuffer.AddShellDetonation(shell, timestamp, ActiveShells[shell.GetInstanceID()]);
             ActiveShells.Remove(shell.GetInstanceID());
         }
 
         public void RepairableUpdate(Repairable repairable)
         {
             if (repairable.Ship == null) return;
-            if (!RegisteredShips.Contains(AcmiFile.GetShipACMIId(repairable.Ship))) return;
+            if (!RegisteredShips.Contains(AcmiBuffer.GetShipACMIId(repairable.Ship))) return;
 
             int networkId = repairable.NetworkId;
             RepairableState newState = new RepairableState(repairable);
             if (!RepairableStates.ContainsKey(networkId) ||
                 !RepairableStates[networkId].Equals(newState))
             {
-                AcmiFile.AddRepairableUpdate(repairable, GetTimestampSeconds(), newState);
+                AcmiBuffer.AddRepairableUpdate(repairable, GetTimestampSeconds(), newState);
                 RepairableStates[networkId] = newState;
             }
         }
@@ -137,7 +131,7 @@ namespace MatchHistoryMod.ACMI
         public void UploadReplay()
         {
             if (MatchLobbyView.Instance == null) return;
-            UploadPacket packet = new ReplayUploadPacket(AcmiFile, MatchLobbyView.Instance.MatchId);
+            UploadPacket packet = new ReplayUploadPacket(AcmiBuffer, MatchLobbyView.Instance.MatchId);
             MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading replay..."));
             string response = Uploader.PostPacket(packet, "submit_replay");
             if (response.Length > 0)
