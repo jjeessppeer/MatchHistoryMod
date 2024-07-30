@@ -6,6 +6,7 @@ using MuseBase.Multiplayer.Unity;
 using MuseBase.Multiplayer;
 using UnityEngine;
 using HarmonyLib;
+using System.IO;
 
 namespace MatchHistoryMod.ACMI
 {
@@ -17,16 +18,20 @@ namespace MatchHistoryMod.ACMI
         public static MatchRecorder InitializingMatchRecorder;
 
         public readonly AcmiFile AcmiFile;
-        private bool ShipsRegistered = false;
+        public readonly AcmiBuffer AcmiBuffer;
+        //private bool ShipsRegistered = false;
+        private readonly string MapName;
+
 
         readonly long GameStartTimestamp;
         readonly Dictionary<string, float> ShipLastTimestamp = new Dictionary<string, float>();
         readonly Dictionary<string, bool> ShipLastDead = new Dictionary<string, bool>();
         readonly HashSet<string> RegisteredShips = new HashSet<string>();
 
-
         readonly Dictionary<int, ShellInfo> ActiveShells = new Dictionary<int, ShellInfo>();
         readonly Dictionary<int, RepairableState> RepairableStates = new Dictionary<int, RepairableState>();
+
+
 
         public MatchRecorder(Mission mission)
         {
@@ -34,7 +39,7 @@ namespace MatchHistoryMod.ACMI
             //string mapName = MatchLobbyView.Instance.Map.NameText.En;
             int mapId = mission.Map.Id;
             string mapName = mission.Map.NameText.En;
-
+            MapName = mission.Map.NameText.En;
             var date = DateTime.Now.ToUniversalTime();
 
             AcmiFile = new AcmiFile(mapId, mapName, date);
@@ -60,7 +65,6 @@ namespace MatchHistoryMod.ACMI
             if (!RegisteredShips.Contains(id))
             {
                 AcmiFile.AddShipInfo(ship, timestamp);
-
                 RegisteredShips.Add(id);
                 ShipLastDead[id] = false;
                 ShipLastTimestamp[id] = int.MinValue;
@@ -140,22 +144,46 @@ namespace MatchHistoryMod.ACMI
                 MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(response));
         }
 
+        public void SaveReplayToFile()
+        {
+            Directory.CreateDirectory("Replays");
+            var date = DateTime.Now.ToUniversalTime();
+            string dateStr = $"{date.Year:D4}-{date.Month:D2}-{date.Day:D2}-{date.Hour:D2}{date.Minute:D2}";
+            string mapStr = MapName.Replace(' ', '_');
+            string filePath;
+
+            int idx = 0;
+            do
+            {
+                filePath = $"Replays/{dateStr}_{mapStr}" + (idx++ == 0 ? "" : $"{idx}") + ".acmi";
+            } while (File.Exists(filePath));
+
+            using (var fs = File.Open(filePath, FileMode.Create, FileAccess.Write))
+            {
+                byte[] info = new UTF8Encoding(true).GetBytes(AcmiBuffer.ToString());
+                fs.Write(info, 0, info.Length);
+            }
+        }
+
 
         public static void InitializeRecorder(Mission mission)
         {
             InitializingMatchRecorder = new MatchRecorder(mission);
         }
 
-        public static void StartRecorder()
+        public static void StartRecording()
         {
             CurrentMatchRecorder = InitializingMatchRecorder;
             InitializingMatchRecorder = null;
         }
 
-        public static void StopRecorder()
+        public static void FinishRecording()
         {
             if (CurrentMatchRecorder == null) return;
-            CurrentMatchRecorder?.AcmiFile.Flush();
+
+            // TODO: check settings if save should be saved and uploaded.
+            CurrentMatchRecorder.UploadReplay();
+            CurrentMatchRecorder.SaveReplayToFile();
             CurrentMatchRecorder = null;
             MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Local replay saved."));
         }

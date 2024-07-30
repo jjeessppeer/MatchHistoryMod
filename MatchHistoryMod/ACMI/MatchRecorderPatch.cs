@@ -23,25 +23,23 @@ namespace MatchHistoryMod.ACMI
         private static void MlvUpdate(MatchLobbyView __instance)
         {
             if (MatchRecorder.InitializingMatchRecorder == null) return;
-            MatchRecorder.StartRecorder();
+            MatchRecorder.StartRecording();
         }
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Mission), "OnDisable")]
         private static void MissionOnDisable()
         {
-            // Called when match ends and post game screen is shown.
-            MatchRecorder.StopRecorder();
+            // Called when match ends.
+            MatchRecorder.FinishRecording();
         }
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(UIManager.UIMatchCompleteState), "Enter")]
         private static void MatchComplteStateEnter()
         {
-            // Called when match ends and post game screen is shown.
-            if (MatchRecorder.CurrentMatchRecorder == null) return;
-            MatchRecorder.CurrentMatchRecorder.UploadReplay();
-            MatchRecorder.StopRecorder();
+            // Called when post game screen is shown.
+            MatchRecorder.FinishRecording();
         }
 
         [HarmonyPostfix]
