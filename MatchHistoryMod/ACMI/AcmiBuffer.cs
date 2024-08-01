@@ -24,9 +24,10 @@ namespace MatchHistoryMod.ACMI
             return Buffer.ToString();
         }
 
-        private void Write(string str, bool allowFlush = true)
+        private void Write(string str)
         {
-            Buffer.AppendLine(str);
+            Buffer.Append(str);
+            Buffer.Append("\n");
         }
 
         public void AddHeader(int mapId, string mapName, DateTime date)
@@ -36,14 +37,14 @@ namespace MatchHistoryMod.ACMI
 
             string header = "FileType=text/acmi/tacview\nFileVersion=2.2";
             string config = $"0,ReferenceTime={dateStr}T00:00:00Z,ReferenceLongitude={mapLongOffset},ReferenceLatitude=0.5";
-            string mapItem = $"#0\n1,T=0|0|0,Name=goio-enviro-{mapId},Color=Orange";
+            string mapItem = $"#0\n1,T=0|0|0,Type=Environment,Name=goio-enviro-{mapId},Color=Orange";
             Write($"{header}\n{config}\n{mapItem}");
         }
 
         public void AddShipInfo(Ship ship, float timestamp)
         {
             string id = GetShipACMIId(ship);
-            string evt = $"{id},Name=goio-ship-{ship.ShipModelId},CallSign={ship.name},Color={ACMIConstants.GetColor(ship.Side)}";
+            string evt = $"{id},Group=PlayerShips,Importance=1.0,Type=Airship,Name=goio-ship-{ship.ShipModelId},CallSign={ship.name},Color={ACMIConstants.GetColor(ship.Side)}";
             Write($"#{timestamp}\n{evt}");
         }
 
@@ -89,8 +90,8 @@ namespace MatchHistoryMod.ACMI
             catch (Exception) { }
             string transform = VectorToTransform(shell.position);
             string id = GetShellAcmiId(shell);
-            string evt = $"{id},T={transform},Name=goio-projectile-{turretType},Parent={shipId},ShooterName={shooterName},ShooterId={shooterUserId},Color={ACMIConstants.GetColor(side)}";
-            Write($"#{timestamp}\n{evt}", false);
+            string evt = $"{id},T={transform},Importance=0.1,Name=goio-projectile-{turretType},Parent={shipId},ShooterName={shooterName},ShooterId={shooterUserId},Color={ACMIConstants.GetColor(side)}";
+            Write($"#{timestamp}\n{evt}");
         }
 
         public void AddShellDetonation(BaseShell shell, float hitTimestamp, ShellInfo launch)
@@ -104,7 +105,7 @@ namespace MatchHistoryMod.ACMI
             float v_z = (shell.position.z - launch.LaunchPosition.z) / t;
             float v_y = (shell.position.y - launch.LaunchPosition.y) / t + gravity * t / 2;
 
-            const int interpolationSteps = 8;
+            const int interpolationSteps = 4;
             for (int i = 1; i <= interpolationSteps; i++)
             {
                 float t_i = t * i / interpolationSteps;
@@ -115,7 +116,7 @@ namespace MatchHistoryMod.ACMI
                 );
                 float timestamp = launch.LaunchTimestamp + t_i;
 
-                Write($"#{timestamp}\n{shellId},T={VectorToTransform(pos)}", false);
+                Write($"#{timestamp}\n{shellId},T={VectorToTransform(pos)}");
             }
             Write($"#{hitTimestamp}\n-{shellId}");
         }

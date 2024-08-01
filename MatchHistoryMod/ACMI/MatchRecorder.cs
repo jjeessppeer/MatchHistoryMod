@@ -131,6 +131,7 @@ namespace MatchHistoryMod.ACMI
         public void UploadReplay()
         {
             if (MatchLobbyView.Instance == null) return;
+            FileLog.Log("Uploading replay...");
             UploadPacket packet = new ReplayUploadPacket(AcmiBuffer, MatchLobbyView.Instance.MatchId);
             MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console("Uploading replay..."));
             string response = Uploader.PostPacket(packet, "submit_replay");

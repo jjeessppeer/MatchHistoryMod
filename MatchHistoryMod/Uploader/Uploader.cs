@@ -1,34 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Newtonsoft.Json;
-using System.IO.Compression;
+﻿using HarmonyLib;
 using System.IO;
 using System.Net;
-
-using BepInEx;
-using HarmonyLib;
-using UnityEngine;
-
-using Muse.Goi2.Entity;
-
-using System.Collections;
-using LitJson;
-using MuseBase.Multiplayer.Unity;
-using MuseBase.Multiplayer;
-using System.Threading;
 
 namespace MatchHistoryMod
 {
     public class Uploader
     {
-        public const string ServerAddress = "http://statsoficarus.xyz";
+        //public const string ServerAddress = "http://statsoficarus.xyz";
         //public const string ServerAddress = "http://localhost";
 
         public static string PostPacket(UploadPacket packet, string path)
         {
-            string url = $"{ServerAddress}/{path}";
+
+            FileLog.Log("real upload start");
+            string url = $"{MatchHistoryMod.BoundConfig.UploadUrl.Value}/{path}";
+            FileLog.Log(url);
             var request = (HttpWebRequest)WebRequest.Create(url);
             var data = packet.GetByteEncoded();
             request.Method = "POST";
@@ -55,9 +41,13 @@ namespace MatchHistoryMod
                     string responseString = new StreamReader(e.Response.GetResponseStream()).ReadToEnd();
                     return responseString;
                 }
+                else if (status == 14)
+                {
+                    return "Upload failed. Server unresponsive.";
+                }
                 else
                 {
-                    return "Upload failed...";
+                    return "Upload failed.";
                 }
             }
         }

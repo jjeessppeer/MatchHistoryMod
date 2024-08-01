@@ -13,6 +13,7 @@ namespace MatchHistoryMod.MatchHistory
         [HarmonyPatch(typeof(UIManager.UIMatchCompleteState), "Enter")]
         private static void MatchComplteStateEnter()
         {
+            FileLog.Log("Saving match history.");
             MatchHistory.SaveMatchHistory();
         }
     }

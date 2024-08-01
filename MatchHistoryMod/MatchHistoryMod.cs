@@ -1,17 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-using BepInEx;
+﻿using BepInEx;
 using HarmonyLib;
-using UnityEngine;
 using BepInEx.Configuration;
-
-
-using Newtonsoft.Json;
-
-using Muse.Goi2.Entity;
 
 namespace MatchHistoryMod
 {
@@ -22,33 +11,38 @@ namespace MatchHistoryMod
         public const string pluginName = "Match History Mod";
         public const string pluginVersion = "2.0.0";
 
-        public ConfigEntry<string> configUploadUrl;
-        public ConfigEntry<bool> configSaveReplays;
+        internal static ModConfig BoundConfig { get; private set; } = null;
 
         public void Awake()
         {
-            // Set up config.
-            configUploadUrl = Config.Bind(
-                "Server", 
-                "URL", 
-                "localhost", 
-                "The url of the upload server.");
-            configSaveReplays = Config.Bind(
-                "Replays", 
-                "Save locally", 
-                false, 
-                "Save .acmi replays locally. (saved in <GAME_DIRECTORY>/replays)");
-
-            string s = configUploadUrl.Value;
-            string s1 = (string) Config["Server", "URL"].BoxedValue;
-            FileLog.Log(s1);
-            FileLog.Log("aaa");
-
-            FileLog.Log(s1);
+            BoundConfig = new ModConfig(base.Config);
 
             var harmony = new Harmony(pluginGuid);
             harmony.PatchAll();
         }
+
+        internal class ModConfig
+        {
+            // We define our config variables in a public scope
+            public readonly ConfigEntry<string> UploadUrl;
+            public readonly ConfigEntry<bool> SaveReplays;
+
+            public ModConfig(ConfigFile cfg)
+            {
+                UploadUrl = cfg.Bind(
+                    "Server",
+                    "URL",
+                    "localhost",
+                    "The url of the upload server.");
+                SaveReplays = cfg.Bind(
+                    "Replays",
+                    "SaveLocally",
+                    false,
+                    "Save .acmi replays locally. (saved in <GAME_DIRECTORY>/replays)");
+            }
+        }
+
     }
-    
 }
+
+    

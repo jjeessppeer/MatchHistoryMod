@@ -21,6 +21,7 @@ namespace MatchHistoryMod.MatchHistory
             string response = Uploader.PostPacket(packet, "submit_match_history");
             if (response.Length > 0)
                 MuseWorldClient.Instance.ChatHandler.AddMessage(ChatMessage.Console(response));
+
         }
     }
 }
